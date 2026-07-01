@@ -1,0 +1,114 @@
+# gongkong/config.yaml.example — 项目专属配置模板（无敏感信息）
+#
+# 用法：复制本文件为 config.yaml，填入你项目的真实值。
+#   cp config.yaml.example config.yaml
+#   # 然后编辑 config.yaml 填入真实账号密码/路径/IP
+#
+# 本文件可安全提交到公共仓库。config.yaml（含真实密码）只保留在本地，
+# 加入 .gitignore，不进开源压缩包。
+#
+# Schema 详见同目录 SKILL.md 第三章。
+
+project:
+  name: 你的项目名
+  root: /path/to/your/project
+
+git:
+  gitea_url: https://your-gitea.example.com
+  # 服务器代码按内容性质分仓库存放，按需增减
+  repositories:
+    - name: server-code
+      local_path: /server-git/code
+      description: 自研代码
+
+    - name: server-config
+      local_path: /server-git/config
+      description: 服务器配置
+
+    - name: server-web
+      local_path: /server-git/web
+      description: 前端站点
+
+ssh:
+  # ~/.ssh/config 中配置的别名
+  alias: your-alias
+  host: your.server.ip
+  port: 22
+  user: your_user
+  key: your_ssh_key_name
+
+deploy:
+  # 服务器上项目部署根目录
+  remote_root: /path/to/deploy/root/
+  # 部署工具脚本（解决 heredoc/引号问题的 base64 传输方案）
+  # 位置：项目根目录下的 remote.ps1（或等效部署脚本）
+  remote_ps1: remote.ps1
+  # 部署优先级: remote.ps1 upload > remote.ps1 run > ssh > 项目配置的远程执行通道
+
+memory:
+  # gongyi 知识库 SQLite 路径（相对 project.root）
+  db_path: .ai/project.ai.db
+
+# 高风险文件清单（gongyou 协议2 使用）
+# 改动前必须经影响检查并等用户确认
+# 以下是通用示例，按你的项目结构调整
+high_risk_files:
+  # 鉴权链路 — 改动可能导致登录失效
+  - "src/auth/**"
+  - "**/auth/**"
+  - "**/middleware/auth*"
+
+  # 数据库迁移 — 改动可能导致数据丢失
+  - "src/db/migrations/**"
+  - "**/migrations/**"
+  - "**/*.sql"
+
+  # 配置文件 — 改动可能导致服务不可用
+  - "**/config.{ts,json,js,py}"
+  - "**/.env"
+  - "**/nginx/**"
+
+  # 前端入口 — 改动可能导致白屏
+  - "**/index.html"
+  - "**/app.{tsx,jsx,js}"
+
+# ===== 可选扩展字段（项目专属，gongcheng 不强制要求） =====
+
+# 远程执行通道（SSH 失败时的兜底，如 WebSocket 代理、CI runner 等）
+# remote_execution:
+#   url: ws://127.0.0.1:8090/remote/ws
+
+# 任务派发机制（多任务并行时使用）
+# task_dispatch:
+#   url: ws://127.0.0.1:8090/dispatch/ws
+
+# 项目关键词映射
+# 用于将用户口语映射到具体仓库
+keyword_mapping:
+  # 示例：用户说"改一下前端" → 映射到 server-web 仓库
+  前端: server-web
+  后端: server-code
+  配置: server-config
+  所有: ALL
+  全部: ALL
+
+# 前端部署架构（如使用 Nginx 直接指向 Git 目录）
+frontend_deploy:
+  nginx_location: /your-project/
+  nginx_alias: /path/to/your/frontend/
+  # Nginx 配置位置（按你的服务器实际情况填）
+  nginx_conf: /etc/nginx/nginx.conf
+  nginx_binary: /usr/sbin/nginx
+  nginx_user: www
+
+# Git 服务管理员信息
+# 自建 Gitea 时填真实账号密码；公共仓库不要把这个文件提交
+git_admin:
+  username: your_username
+  password: YOUR_PASSWORD_HERE
+
+# 自动快照（每天凌晨自动遍历所有仓库，有修改则自动 commit + push）
+auto_snapshot:
+  enabled: true
+  time: "04:00"
+  commit_message_template: "auto-snapshot: [日期] 自动备份"

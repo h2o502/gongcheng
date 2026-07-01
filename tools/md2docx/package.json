@@ -1,0 +1,11 @@
+{
+  "name": "md2docx",
+  "version": "2.0.0",
+  "description": "Markdown ↔ Word 双向转换（可选 Mermaid 支持）",
+  "scripts": {
+    "postinstall": "echo 'Mermaid CLI 已安装，MD→DOCX 时可渲染图表'"
+  },
+  "optionalDependencies": {
+    "@mermaid-js/mermaid-cli": "^11.15.0"
+  }
+}
