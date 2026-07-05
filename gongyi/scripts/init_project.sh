@@ -46,6 +46,39 @@ echo "  query_db.py   ✓"
 echo "  export_md.py  ✓"
 echo "  references/schema.md  ✓"
 
+# 注入 .gitignore 资产化策略（知识库作为 git 资产提交，新人 clone 即用）
+inject_gitignore() {
+  local gitignore="$1"
+  local marker="# gongyi — 知识库资产化策略"
+  if [ -f "$gitignore" ] && grep -qF "$marker" "$gitignore"; then
+    return 0
+  fi
+  cat >> "$gitignore" << 'EOF'
+
+# gongyi — 知识库资产化策略
+# SQLite 知识库作为团队 git 资产提交，新人 clone 即拥有项目记忆
+# 运行时产物（wal/shm）忽略
+!.ai/
+!.ai/*.ai.db
+!.ai/CONTEXT.md
+!.ai/build_db.py
+!.ai/query_db.py
+!.ai/export_md.py
+!.ai/references/
+.ai/*.db-wal
+.ai/*.db-shm
+EOF
+}
+
+# 项目根 .gitignore
+if [ -f "$PROJECT_PATH/.gitignore" ]; then
+  inject_gitignore "$PROJECT_PATH/.gitignore"
+  echo "  .gitignore 资产化条目已追加 ✓"
+else
+  inject_gitignore "$PROJECT_PATH/.gitignore"
+  echo "  .gitignore 已创建（含资产化条目）✓"
+fi
+
 # 注入初始约束模板
 echo ""
 echo "注入初始约束模板..."
@@ -98,6 +131,7 @@ echo "     python3 $AI_DIR/export_md.py $AI_DIR/${PROJECT_NAME}.ai.db --diff -o 
 echo "  4. 人类审查后交还给 AI: 继续第 2 步"
 echo "  5. 版本迭代完成时:"
 echo "     python3 $AI_DIR/export_md.py $AI_DIR/${PROJECT_NAME}.ai.db -o docs/PROJECT_SPEC.md"
+echo "  6. 知识库 .ai/*.ai.db 作为 git 资产提交，新人 clone 即拥有项目记忆"
 echo ""
 echo "快捷查询:"
 echo "  cd $AI_DIR && python3 query_db.py \"这次循环改了什么\""

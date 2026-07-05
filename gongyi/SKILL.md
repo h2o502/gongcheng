@@ -85,6 +85,8 @@ cd <project.root>/.ai && python3 build_db.py <project.root> --incremental --auth
 # AI 按需查询
 cd <project.root>/.ai && python3 query_db.py "这次循环改了什么"       # 查看最近变更
 cd <project.root>/.ai && python3 query_db.py billing                  # 查 billing 约束
+cd <project.root>/.ai && python3 query_db.py "谁调用 validateToken"   # 查调用方（符号级，精确到行号）
+cd <project.root>/.ai && python3 query_db.py "调用关系 validateToken" # 查被调用方
 cd <project.root>/.ai && python3 query_db.py --sql "SELECT rule FROM constraints WHERE severity='forbidden'"
 ```
 
@@ -222,8 +224,9 @@ bash init_project.sh <项目路径>
 1. **首次接触项目** — 先读 `CONTEXT.md`，不要直接读源码
 2. **查询精确信息** — 用 `query_db.py --sql` 而不是读整个 spec
 3. **修改代码前** — 查 constraints 表中 related module 的 forbidden/critical 规则
-4. **修改代码后** — 运行 `build_db.py --incremental` 更新知识库
-5. **需要交接时** — 运行 `export_md.py` 生成完整文档
+4. **修改函数前** — 查调用关系：`query_db.py "谁调用 validateToken"`，拿到所有调用方 file:line，不用 grep 整个代码库
+5. **修改代码后** — 运行 `build_db.py --incremental` 更新知识库（calls/called_by 会自动重建）
+6. **需要交接时** — 运行 `export_md.py` 生成完整文档
 
 ### 给人类的建议
 
@@ -231,6 +234,7 @@ bash init_project.sh <项目路径>
 2. **查看决策历史** — 读 `PROJECT_SPEC.md` 的 ADR 章节
 3. **查看红线** — 读约束清单中标记为 forbidden 的条目
 4. **手工补充 ADR** — 可以在数据库中直接 INSERT 到 decisions 表
+5. **知识库是 git 资产** — `.ai/*.ai.db` 随代码提交，新同事 clone 即拥有项目记忆，不用重新索引
 
 ## 与其他工字 skill 的协作
 
