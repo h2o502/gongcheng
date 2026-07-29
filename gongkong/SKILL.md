@@ -1,7 +1,7 @@
 ---
 slug: gongkong
 displayName: 工控
-version: 1.0.0
+version: 1.3.0
 summary: 项目配置注入层，通过 config.yaml 向 gongcheng 提供项目专属配置。
 license: MIT
 name: gongkong
