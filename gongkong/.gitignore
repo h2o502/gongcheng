@@ -1,0 +1,10 @@
+# 真实配置文件含账号密码，禁止提交到 github 公开仓库 / skillhub 等开源平台
+# 自建 Gitea 私有仓库不在此限（gongcheng 红线：自建 Gitea 不脱敏，公共仓库须脱敏）
+config.yaml
+
+# Python 缓存
+__pycache__/
+*.pyc
+
+# 备份
+*.bak
