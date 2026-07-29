@@ -1,4 +1,9 @@
 ---
+slug: gongwen
+displayName: 工问
+version: 1.0.0
+summary: 方案审问与方案底稿，把模糊需求逼问成结构化方案。
+license: MIT
 name: gongwen
 description: |
   工问 (gongwen) — 方案审问与方案底稿。

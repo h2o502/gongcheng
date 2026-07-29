@@ -1,7 +1,14 @@
 ---
-name: gonghua
-description: 工画 (gonghua) — Anti-slop frontend skill for landing pages, portfolios, and redesigns. The agent reads the brief, infers the right design direction, and ships interfaces that do not look templated. Real design systems when applicable, audit-first on redesigns, strict pre-flight check.
+slug: gonghua
+displayName: 工画
+version: 1.0.0
+summary: 反 AI slop 前端实现，专注落地页、作品集与重设计。
 license: MIT
+name: gonghua
+description: |
+  工画 (gonghua) — Anti-slop frontend skill for landing pages, portfolios, and redesigns.
+  The agent reads the brief, infers the right design direction, and ships interfaces that do not look templated.
+  Real design systems when applicable, audit-first on redesigns, strict pre-flight check.
 ---
 
 # 工画 (gonghua) — Anti-Slop Frontend Skill

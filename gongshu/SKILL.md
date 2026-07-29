@@ -1,6 +1,6 @@
 ---
 slug: gongshu
-displayName: 工数 · 数据安全守护
+displayName: 工数
 version: 1.0.0
 summary: 数据库操作风险分级、强制备份、确认门禁、审计日志，防止 AI 误操作导致数据不可恢复。
 license: MIT

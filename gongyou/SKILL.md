@@ -1,7 +1,14 @@
 ---
-name: gongyou
-description: 工优 (gongyou) — 连续性任务守护。约束 AI 在连续性编码任务中的工作方式：强制改动前影响检查、渐进式记忆加载、踩坑标注。会话启动时和修改任何文件前必须触发。高风险文件清单由 gongkong/config.yaml 注入。
+slug: gongyou
+displayName: 工优
+version: 1.0.0
+summary: 连续性任务守护，改动前影响检查 + 渐进式记忆加载 + 踩坑标注。
 license: MIT
+name: gongyou
+description: |
+  工优 (gongyou) — 连续性任务守护。约束 AI 在连续性编码任务中的工作方式：
+  强制改动前影响检查、渐进式记忆加载、踩坑标注。会话启动时和修改任何文件前必须触发。
+  高风险文件清单由 gongkong/config.yaml 注入。
 ---
 
 # 工优 (gongyou) — 连续性任务守护

@@ -1,7 +1,14 @@
 ---
-name: gongsheji
-description: 工设计 — 严格工程设计工作流。当用户明确要求（如 "enable superpowers", "开启工程设计模式", "включи superpowers"）或任务涉及 coding/build/debug 时触发。流程：明确目标 → 写 spec → 写 plan → 小步执行（优先 TDD）→ 评审完成。仅用于编码工作流，不用于日常对话。
+slug: gongsheji
+displayName: 工设计
+version: 1.0.0
+summary: 严格工程设计工作流，spec→plan→TDD 执行→评审，用于编码实现。
 license: MIT
+name: gongsheji
+description: |
+  工设计 — 严格工程设计工作流。当用户明确要求（如 "enable superpowers", "开启工程设计模式", "включи superpowers"）
+  或任务涉及 coding/build/debug 时触发。流程：明确目标 → 写 spec → 写 plan → 小步执行（优先 TDD）→ 评审完成。
+  仅用于编码工作流，不用于日常对话。
 ---
 
 # 工设计 (gongsheji) — 严格工程设计工作流

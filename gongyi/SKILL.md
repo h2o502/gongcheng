@@ -1,4 +1,9 @@
 ---
+slug: gongyi
+displayName: 工艺
+version: 1.0.0
+summary: AI 协同编程的项目记忆中继站，SQLite 知识库 + 开发/审查/交接三模式。
+license: MIT
 name: gongyi
 description: |
   工艺 (gongyi) — AI 协同编程的项目记忆中继站（原 MemBridge 通忆）。
