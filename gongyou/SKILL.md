@@ -1,7 +1,7 @@
 ---
 slug: gongyou
 displayName: 工优
-version: 1.3.1
+version: 1.3.2
 summary: 连续性任务守护，改动前影响检查 + 渐进式记忆加载 + 踩坑标注。
 license: MIT
 name: gongyou

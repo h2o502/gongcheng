@@ -217,7 +217,7 @@ gongcheng 会这样调度：
 7. gongcheng 调度 → 加载 gongsheji → 读设计稿 → 写 spec/plan
 8. 如涉及数据库 → gongshu 风险分级 + 备份确认
 9. gongsheji 执行 → gongyou 影响检查 → 改代码
-10. git-management 提交 → gongyi 增量更新知识库
+10. git commit + push → gongyi 增量更新知识库
 11. gongtu 渲染架构图附入文档
 ```
 
@@ -228,7 +228,7 @@ gongcheng 会这样调度：
 2. gongyou 协议2：改动前影响检查（高风险文件等用户确认）
 3. gongyi 查询：拉取相关模块/约束/ADR
 4. gongsheji：写 spec → 写 plan → TDD 执行
-5. git-management 提交 → gongyi 增量更新
+5. git commit + push → gongyi 增量更新
 ```
 
 ## 架构原则
@@ -249,6 +249,7 @@ gongcheng 会这样调度：
 
 ## 版本
 
+v1.3.2 — 2026-07-29 移除已废弃的 git-management skill 引用，统一改为 git commit + push
 v1.3.1 — 2026-07-29 统一子 skill 与根包版本号为 1.3.1，同步 GitHub 与 SkillHub 最新内容
 v1.3.0 — 2026-07-28 明确 gongxu（工需）与 gongchan（工产）分工，gongxu 产出作为 gongchan 强制输入，README 同步更新
 v1.2.3 — 2026-07-28 将 md2html 纳入工具层，README 同步重整子 skill 与工具层结构

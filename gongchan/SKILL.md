@@ -1,7 +1,7 @@
 ---
 slug: gongchan
 displayName: 工产
-version: 1.3.1
+version: 1.3.2
 summary: 从需求澄清到产品设计的完整流程，接收 gongxu 工需建议书，产出 PRD/架构/数据/界面。
 license: MIT
 name: gongchan

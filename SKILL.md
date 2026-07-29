@@ -1,7 +1,7 @@
 ---
 slug: gongcheng
 displayName: 工成 · Vibecoding 全生命周期 AI 工程 Skill
-version: 1.3.1
+version: 1.3.2
 summary: 覆盖 Vibecoding 全生命周期的工程编排层，用 PlantUML 固化架构，具备自我迭代能力。v1.3 明确 gongxu（工需）与 gongchan（工产）分工，gongxu 产出工需建议书作为 gongchan 的强制输入。
 license: MIT
 name: gongcheng
@@ -37,7 +37,7 @@ tags:
 
 | # | 工作类型 | 必须加载的通用 skill | 项目配置（由 gongkong/config.yaml 注入） | 违反后果 |
 |---|---------|---------------------|------------------------------------------|---------|
-| 1 | **修改代码/提交代码/部署** | gongsheji + gongyou + git-management | `git.repositories`（项目仓库列表） | 代码无法追溯，禁止操作 |
+| 1 | **修改代码/提交代码/部署** | gongsheji + gongyou | `git.repositories`（项目仓库列表） | 代码无法追溯，禁止操作 |
 | 2 | **文档创建/转换（.md ↔ .docx / .html）** | md2docx + md2html | - | 格式不规范，禁止操作 |
 | 3 | **项目设计/架构决策/方案规划** | gongsheji | - | 缺少规范流程，禁止操作 |
 | 4 | **改动代码/更新项目状态** | gongyi | `memory.db_path`（知识库路径） | 知识库不同步，禁止操作 |
@@ -338,7 +338,7 @@ gongwen（工问）→ gongxu（工需）→ gongchan（工产）→ gongsheji�
   ├─ 4b. 如涉及数据库 → gongshu 协议1（数据风险分级）+ 协议2（备份+确认门禁）
   ├─ 5. 如需设计 → 加载 gongsheji → 写 spec/plan
   ├─ 6. 修改代码 → gongkong 处理部署（用 config.yaml 的 SSH/部署配置）
-  ├─ 7. git-management 提交（用 config.yaml 的 git 仓库配置）
+  ├─ 7. git commit + push（用 config.yaml 的 git 仓库配置）
   ├─ 8. 同步记忆 → 加载 gongyi → build_db --incremental
   ├─ 9. 如涉及文档 → 加载 md2docx → 生成/更新文档
   └─ 10. 如涉及数据操作 → gongshu 协议3（写入审计日志）
@@ -406,7 +406,7 @@ gongwen（工问）→ gongxu（工需）→ gongchan（工产）→ gongsheji�
   │     ├─ .html（含 Mermaid 流程图） → md2html
   │     └─ 原生 .xlsx/.pptx/.docx/.pdf → tools/excel、tools/ppt、tools/docx、tools/pdf
   ├─ 3. 执行转换
-  └─ 4. 如文档描述代码变更 → 加载 git-management + gongyi
+  └─ 4. 如文档描述代码变更 → git commit + push → 加载 gongyi
 ```
 
 ### 4.7 界面设计/前端开发流程
@@ -417,7 +417,7 @@ gongwen（工问）→ gongxu（工需）→ gongchan（工产）→ gongsheji�
   ├─ 1. 加载 gongcheng
   ├─ 2. 加载 gonghua → 执行 Design Read
   ├─ 3. 设置三旋钮 → 选择设计系统 → 输出设计方案
-  ├─ 4. 确认后实现代码 → gongkong 处理部署 → git-management 提交
+  ├─ 4. 确认后实现代码 → gongkong 处理部署 → git commit + push
   ├─ 5. 同步记忆 → 加载 gongyi → build_db --incremental
   └─ 6. 如 SSH 部署失败 → 降级到项目配置的远程执行通道
 ```
@@ -558,7 +558,7 @@ gongkong（项目专属）
 
 | 用户说 | gongcheng 执行 |
 |--------|----------------|
-| "修改...代码" | gongkong 注入配置 → gongyou 影响检查 → gongsheji 工作流 → git-management 提交 → gongyi 更新记忆 |
+| "修改…代码" | gongkong 注入配置 → gongyou 影响检查 → gongsheji 工作流 → git commit + push → gongyi 更新记忆 |
 | "生成一个关于...的报告" | 加载 md2docx → 生成 .md → 转 .docx |
 | "把 Markdown 转成 HTML" | 加载 md2html → 生成 .html |
 | "设计...功能" | 加载 gongsheji → 写 spec/plan |
@@ -652,6 +652,7 @@ MIT。gongtu 子目录的 LICENSE 是 Kroki 依赖的协议声明。
 
 ## 版本
 
+v1.3.2 — 2026-07-29 移除已废弃的 git-management skill 引用，统一改为 git commit + push
 v1.3.1 — 2026-07-29 统一子 skill 与根包版本号为 1.3.1，同步 GitHub 与 SkillHub 最新内容
 v1.3.0 — 2026-07-28 明确 gongxu（工需）与 gongchan（工产）分工，新增第五章交接产物规范；gongxu 产出作为 gongchan 强制输入；README 增加最小示例
 v1.2.3 — 2026-07-28 将 md2html（Markdown 转 HTML / ASCII 流程图自动转 Mermaid）纳入 gongcheng 工具层；重整第三章子 skill 索引，明确区分工字系列子 skill 与 tools/ 工具层（文档转换 / Office / 图形）。

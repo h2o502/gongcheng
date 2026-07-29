@@ -1,7 +1,7 @@
 ---
 slug: gonghua
 displayName: 工画
-version: 1.3.1
+version: 1.3.2
 summary: 反 AI slop 前端实现，专注落地页、作品集与重设计。
 license: MIT
 name: gonghua
