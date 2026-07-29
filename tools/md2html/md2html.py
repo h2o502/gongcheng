@@ -1,207 +1,389 @@
 #!/usr/bin/env python3
-"""
-Markdown / HTML 互转及 PDF 技能 for OpenClaw.
-支持：Markdown → HTML、Markdown → PDF、HTML → Markdown；从文件或传入内容。
-"""
+"""md2html — ASCII flowchart to Mermaid converter.
 
-import base64
-import json
-import os
+Sister tool of md2docx.  Supports four ASCII diagram styles commonly found
+in Markdown design documents:
+
+1. Bracket flow:    [Node] + ↓ annotations
+2. Numbered flow:   01 Node + ↓ annotations
+3. Domain flow:     text containing "域：" + ↓ annotations
+4. Sequence flow:   plain steps separated by ↓ with optional ├── branches
+
+Usage:
+    python md2html.py input.md output.md
+    python md2html.py --html input.md output.html
+    cat input.md | python md2html.py > output.md
+"""
+from __future__ import annotations
+
+import html
+import re
 import sys
-from io import BytesIO
-from typing import Any, Tuple, Optional
+from pathlib import Path
+from typing import Callable
 
 
-def _get_content(req: dict) -> Tuple[str, Optional[str]]:
-    """
-    从 path 或 content 获取文本。返回 (content, error_message)。
-
-    为避免被恶意 Agent 利用读取任意系统文件，这里对 path 做了简单限制：
-    - 只允许相对路径（不允许绝对路径、盘符、.. 等）
-    - 仅允许常见文本扩展名：.md/.markdown/.txt/.html/.htm
-    """
-    path = req.get("path")
-    content = req.get("content")
-
-    if path:
-        raw_path = str(path).strip()
-        # 禁止绝对路径、盘符以及路径穿越
-        if os.path.isabs(raw_path) or ":" in raw_path or ".." in raw_path:
-            return "", "Path not allowed. Please use a relative path under the project (no '..', no drive letters)."
-
-        allowed_ext = (".md", ".markdown", ".txt", ".html", ".htm")
-        _, ext = os.path.splitext(raw_path)
-        if ext.lower() not in allowed_ext:
-            return "", f"Unsupported extension: {ext}. Allowed: {', '.join(allowed_ext)}"
-
-        safe_path = os.path.join(os.getcwd(), raw_path)
-        if not os.path.isfile(safe_path):
-            return "", f"File not found: {raw_path}"
-        try:
-            with open(safe_path, "r", encoding="utf-8") as f:
-                return f.read(), None
-        except Exception as e:
-            return "", str(e)
-
-    if content is not None:
-        return str(content), None
-
-    return "", "Either 'path' or 'content' is required"
+__version__ = "1.0.0"
 
 
-def _html_document(body: str, title: str = "Document") -> str:
-    """包装为完整 HTML 文档。"""
-    return (
-        "<!DOCTYPE html>\n"
-        "<html lang=\"zh-CN\">\n"
-        "<head>\n"
-        "  <meta charset=\"UTF-8\">\n"
-        f"  <title>{title}</title>\n"
-        "  <style>\n"
-        "    body { font-family: system-ui, sans-serif; line-height: 1.6; max-width: 720px; margin: 1em auto; padding: 0 1em; }\n"
-        "    pre { background: #f5f5f5; padding: 0.75em; overflow-x: auto; }\n"
-        "    code { background: #f5f5f5; padding: 0.2em 0.4em; }\n"
-        "    table { border-collapse: collapse; }\n"
-        "    th, td { border: 1px solid #ddd; padding: 0.4em 0.6em; }\n"
-        "  </style>\n"
-        "</head>\n<body>\n"
-        f"{body}\n"
-        "</body>\n</html>"
-    )
+def sanitize_mermaid_text(text: str) -> str:
+    """Make text safe for Mermaid node/edge labels."""
+    text = text.replace("\\", " ")
+    text = text.replace('"', "'")
+    text = text.replace("|", "｜")
+    # Keep <br/> but escape other bare < > to avoid HTML parsing issues.
+    text = text.replace("<br/>", "\x00BR\x00").replace("<br>", "\x00BR\x00")
+    text = text.replace("<", "＜").replace(">", "＞")
+    text = text.replace("\x00BR\x00", "<br/>")
+    return text.strip()
 
 
-def md_to_html(content: str, standalone: bool = True, title: str = "Document") -> str:
-    """Markdown 转 HTML。"""
-    try:
-        import markdown
-    except ImportError:
-        return {"error": "missing_dependency", "message": "Install: pip install markdown"}
-    html_body = markdown.markdown(
-        content,
-        extensions=["extra", "codehilite", "tables"],
-        extension_configs={"codehilite": {"css_class": "highlight"}},
-    )
-    if standalone:
-        return _html_document(html_body, title=title)
-    return html_body
+def _has_arrow(text: str) -> bool:
+    return "↓" in text or "->" in text or "-->" in text
 
 
-def html_to_pdf(html_str: str) -> bytes | dict:
-    """HTML 转 PDF，返回 PDF 字节或错误 dict。"""
-    try:
-        from xhtml2pdf import pisa
-    except ImportError:
-        return {
-            "error": "missing_dependency",
-            "message": "Install: pip install xhtml2pdf",
-        }
-    out = BytesIO()
-    try:
-        pisa.CreatePDF(html_str.encode("utf-8"), dest=out, encoding="utf-8")
-    except Exception as e:
-        return {"error": "pdf_error", "message": str(e)}
-    pdf_bytes = out.getvalue()
-    if len(pdf_bytes) == 0:
-        return {"error": "pdf_error", "message": "Generated PDF is empty"}
-    return pdf_bytes
+def looks_like_bracket_flow(text: str) -> bool:
+    lines = text.splitlines()
+    return any(re.match(r"^\[", l.strip()) for l in lines) and _has_arrow(text)
 
 
-def cmd_html(req: dict) -> Any:
-    """转为 HTML。请求 JSON: {"path": "a.md"} 或 {"content": "# Hello"}，可选 "title"。"""
-    content, err = _get_content(req)
-    if err:
-        return {"error": "input_error", "message": err}
-    title = (req.get("title") or "Document").strip() or "Document"
-    html = md_to_html(content, standalone=True, title=title)
-    if isinstance(html, dict):
-        return html
-    return {"html": html}
+def looks_like_numbered_flow(text: str) -> bool:
+    lines = text.splitlines()
+    return any(re.match(r"^\d{2}\s+", l.strip()) for l in lines) and _has_arrow(text)
 
 
-def cmd_pdf(req: dict) -> Any:
-    """转为 PDF。请求 JSON: {"path": "a.md"} 或 {"content": "# Hello"}，可选 "title"。返回 pdf_base64。"""
-    content, err = _get_content(req)
-    if err:
-        return {"error": "input_error", "message": err}
-    title = (req.get("title") or "Document").strip() or "Document"
-    html = md_to_html(content, standalone=True, title=title)
-    if isinstance(html, dict):
-        return html
-    result = html_to_pdf(html)
-    if isinstance(result, dict):
-        return result
-    return {"pdf_base64": base64.b64encode(result).decode("ascii")}
+def looks_like_domain_flow(text: str) -> bool:
+    lines = text.splitlines()
+    return any("域：" in l for l in lines) and _has_arrow(text)
 
 
-def html_to_md(html_str: str) -> str | dict:
-    """HTML 转 Markdown。"""
-    try:
-        import html2text
-    except ImportError:
-        return {
-            "error": "missing_dependency",
-            "message": "Install: pip install html2text",
-        }
-    h = html2text.HTML2Text()
-    h.ignore_links = False
-    h.ignore_images = False
-    h.body_width = 0
-    return h.handle(html_str)
+def looks_like_sequence_flow(text: str) -> bool:
+    """Top-down sequence with optional branches: steps separated by ↓ and/or ├──."""
+    lines = [l for l in text.splitlines() if l.strip()]
+    if not lines:
+        return False
+    has_down = any("↓" in l for l in lines)
+    has_box = any(c in text for c in "┌┐")
+    if has_box:
+        return False
+    first = lines[0].strip()
+    if first.startswith(("```", "[", "┌", "└", "│", "├──", "└──")):
+        return False
+    if not has_down:
+        return False
+    steps = 0
+    for l in lines:
+        s = l.strip()
+        if s.startswith(("├──", "└──", "│")):
+            continue
+        if re.match(r"^[↓\-→\s]+$", s):
+            continue
+        if s:
+            steps += 1
+    return steps >= 2
 
 
-def cmd_html2md(req: dict) -> Any:
-    """HTML 转 Markdown。请求 JSON: {"path": "a.html"} 或 {"content": "<p>...</p>"}。"""
-    content, err = _get_content(req)
-    if err:
-        return {"error": "input_error", "message": err}
-    result = html_to_md(content)
-    if isinstance(result, dict):
-        return result
-    return {"markdown": result}
+def _strip_prefix(s: str) -> str:
+    s = re.sub(r"^[↓\-→\s]+", "", s)
+    s = re.sub(r"\s*[↓\-→]+\s*$", "", s)
+    return s.strip()
 
 
-def _read_json_arg() -> dict:
-    if len(sys.argv) < 3 or not sys.argv[2].strip():
-        return {}
-    raw = sys.argv[2]
-    try:
-        obj = json.loads(raw)
-    except json.JSONDecodeError as e:
-        print(f"JSON parse error: {e}", file=sys.stderr)
-        sys.exit(1)
-    if not isinstance(obj, dict):
-        print("Error: JSON body must be an object.", file=sys.stderr)
-        sys.exit(1)
-    return obj
+def convert_bracket_flow(text: str, prefix: str) -> str | None:
+    lines = text.splitlines()
+    nodes: list[tuple[str, str]] = []
+    edges: list[tuple[str, str, str]] = []
+    annotations: list[str] = []
+    last_node: str | None = None
+
+    for line in lines:
+        s = line.strip()
+        if not s:
+            continue
+        m = re.match(r"^\[([^\]]+)\](.*)", s)
+        if m:
+            label = sanitize_mermaid_text(m.group(1) + m.group(2))
+            nid = f"{prefix}N{len(nodes)}"
+            nodes.append((nid, label))
+            if last_node is not None:
+                elabel = "<br/>".join(sanitize_mermaid_text(a) for a in annotations) if annotations else ""
+                edges.append((last_node, nid, elabel))
+                annotations = []
+            last_node = nid
+            continue
+        if s.startswith("↓") or s.startswith("->") or s.startswith("-->") or re.match(r"^[├└│]", s):
+            rest = re.sub(r"^[↓├└─│\s]+", "", s).strip()
+            if rest:
+                annotations.append(rest)
+            continue
+        if annotations:
+            annotations[-1] += " " + s
+
+    if not nodes:
+        return None
+
+    out = ["flowchart TD"]
+    for nid, label in nodes:
+        out.append(f'  {nid}["{label}"]')
+    for a, b, label in edges:
+        if label:
+            out.append(f'  {a} -->|"{label}"| {b}')
+        else:
+            out.append(f"  {a} --> {b}")
+    return "\n".join(out)
 
 
-def main():
-    if len(sys.argv) < 2:
-        print(
-            "Usage:\n"
-            "  md2html.py html '{\"path\":\"README.md\"}'           # Markdown → HTML\n"
-            "  md2html.py pdf '{\"path\":\"README.md\"}'            # Markdown → PDF（返回 base64）\n"
-            "  md2html.py html2md '{\"path\":\"page.html\"}'        # HTML → Markdown\n"
-            "  md2html.py html2md '{\"content\":\"<p>Hi</p>\"}'     # HTML 内容 → Markdown",
-            file=sys.stderr,
-        )
-        sys.exit(1)
+def convert_numbered_flow(text: str, prefix: str) -> str | None:
+    lines = text.splitlines()
+    nodes: list[tuple[str, str]] = []
+    edges: list[tuple[str, str, str]] = []
+    annotations: list[str] = []
+    last_node: str | None = None
 
-    cmd = sys.argv[1].strip().lower()
-    req = _read_json_arg()
+    for line in lines:
+        s = line.strip()
+        if not s:
+            continue
+        m = re.match(r"^(\d{2})\s+(.+)", s)
+        if m:
+            label = sanitize_mermaid_text(m.group(2))
+            nid = f"{prefix}N{len(nodes)}"
+            nodes.append((nid, label))
+            if last_node is not None:
+                elabel = "<br/>".join(sanitize_mermaid_text(a) for a in annotations) if annotations else ""
+                edges.append((last_node, nid, elabel))
+                annotations = []
+            last_node = nid
+            continue
+        if "↓" in s:
+            rest = re.sub(r".*↓\s*", "", s).strip("（）()")
+            if rest:
+                annotations.append(rest)
 
-    if cmd == "html":
-        result = cmd_html(req)
-    elif cmd == "pdf":
-        result = cmd_pdf(req)
-    elif cmd == "html2md":
-        result = cmd_html2md(req)
+    if not nodes:
+        return None
+
+    out = ["flowchart TD"]
+    for nid, label in nodes:
+        out.append(f'  {nid}["{label}"]')
+    for a, b, label in edges:
+        if label:
+            out.append(f'  {a} -->|"{label}"| {b}')
+        else:
+            out.append(f"  {a} --> {b}")
+    return "\n".join(out)
+
+
+def convert_domain_flow(text: str, prefix: str) -> str | None:
+    lines = text.splitlines()
+    nodes: list[tuple[str, str]] = []
+    edges: list[tuple[str, str, str]] = []
+    annotations: list[str] = []
+    last_node: str | None = None
+
+    for line in lines:
+        s = line.strip()
+        if not s:
+            continue
+        if "域：" in s and not s.startswith("↓") and not re.match(r"^[├└─│]", s):
+            label = sanitize_mermaid_text(s)
+            nid = f"{prefix}N{len(nodes)}"
+            nodes.append((nid, label))
+            if last_node is not None:
+                elabel = "<br/>".join(sanitize_mermaid_text(a) for a in annotations) if annotations else ""
+                edges.append((last_node, nid, elabel))
+                annotations = []
+            last_node = nid
+            continue
+        if s.startswith("↓") or s.startswith("├──") or s.startswith("└──") or s.startswith("│"):
+            rest = re.sub(r"^[↓├└─│\s]+", "", s).strip()
+            if rest:
+                annotations.append(rest)
+            continue
+        if annotations:
+            annotations[-1] += " " + s
+
+    if not nodes:
+        return None
+
+    out = ["flowchart TD"]
+    for nid, label in nodes:
+        out.append(f'  {nid}["{label}"]')
+    for a, b, label in edges:
+        if label:
+            out.append(f'  {a} -->|"{label}"| {b}')
+        else:
+            out.append(f"  {a} --> {b}")
+    return "\n".join(out)
+
+
+def convert_sequence_flow(text: str, prefix: str) -> str | None:
+    """Convert a vertical-arrow sequence with optional tree branches into Mermaid."""
+    lines = text.splitlines()
+    parsed: list[tuple[str, list[str]]] = []
+    pending_branches: list[str] = []
+    last_main: str | None = None
+
+    def is_branch_line(s: str) -> bool:
+        return bool(re.match(r"^[\s]*([├└]──|│)", s))
+
+    def is_main_line(s: str) -> bool:
+        s = s.strip()
+        if not s:
+            return False
+        if re.match(r"^[↓\-→\s]+$", s):
+            return False
+        if s.startswith(("```", "[", "┌", "└", "│", "├──", "└──")):
+            return False
+        return True
+
+    for line in lines:
+        if is_branch_line(line):
+            rest = re.sub(r"^[\s]*[├└]──\s*", "", line)
+            rest = re.sub(r"^[\s]*│\s*", "", rest)
+            rest = _strip_prefix(rest)
+            if rest:
+                pending_branches.append(rest)
+        elif is_main_line(line):
+            if last_main is not None:
+                parsed.append((last_main, pending_branches))
+                pending_branches = []
+            last_main = _strip_prefix(line)
+
+    if last_main is not None:
+        parsed.append((last_main, pending_branches))
+
+    if len(parsed) < 2 and not any(b for _, b in parsed):
+        return None
+
+    out = ["flowchart TD"]
+    node_idx = 0
+
+    def make_node(label: str) -> str:
+        nonlocal node_idx
+        nid = f"{prefix}N{node_idx}"
+        node_idx += 1
+        out.append(f'  {nid}["{sanitize_mermaid_text(label)}"]')
+        return nid
+
+    prev_nodes: list[str] = []
+    for i, (step, branches) in enumerate(parsed):
+        current = make_node(step)
+        for p in prev_nodes:
+            out.append(f"  {p} --> {current}")
+        prev_nodes = [current]
+        if branches:
+            branch_end_nodes = []
+            for branch in branches:
+                bnode = make_node(branch)
+                out.append(f"  {current} --> {bnode}")
+                branch_end_nodes.append(bnode)
+            if i + 1 < len(parsed):
+                prev_nodes = branch_end_nodes
+            else:
+                prev_nodes = branch_end_nodes
+
+    return "\n".join(out)
+
+
+def convert_diagram_to_mermaid(text: str, prefix: str) -> str | None:
+    text = html.unescape(text)
+    converters: list[tuple[Callable[[str], bool], Callable[[str, str], str | None]]] = [
+        (looks_like_bracket_flow, convert_bracket_flow),
+        (looks_like_numbered_flow, convert_numbered_flow),
+        (looks_like_domain_flow, convert_domain_flow),
+        (looks_like_sequence_flow, convert_sequence_flow),
+    ]
+    for detector, converter in converters:
+        if detector(text):
+            return converter(text, prefix)
+    return None
+
+
+def transform_markdown(text: str, prefix: str = "diagram_") -> str:
+    """Convert ASCII flowcharts inside plain Markdown code blocks into Mermaid blocks."""
+    # Find fenced code blocks with no language tag.
+    pattern = re.compile(r"```\n(.*?)\n```", re.DOTALL)
+    counter = 0
+
+    def repl(match: re.Match[str]) -> str:
+        nonlocal counter
+        code = match.group(1)
+        current_prefix = f"{prefix}{counter}_"
+        mermaid_src = convert_diagram_to_mermaid(code, current_prefix)
+        counter += 1
+        if mermaid_src:
+            return f"```mermaid\n{mermaid_src}\n```"
+        return match.group(0)
+
+    return pattern.sub(repl, text)
+
+
+def wrap_html(title: str, markdown_html: str, theme: str = "default") -> str:
+    """Wrap pre-rendered markdown HTML into a minimal HTML page with Mermaid.js."""
+    return f"""<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>{title}</title>
+  <style>
+    body {{ font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "PingFang SC", "Microsoft YaHei", sans-serif; max-width: 900px; margin: 0 auto; padding: 2rem; line-height: 1.6; color: #333; }}
+    pre {{ background: #f5f5f5; padding: 1rem; border-radius: 6px; overflow-x: auto; }}
+    code {{ font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace; }}
+    table {{ border-collapse: collapse; width: 100%; margin: 1rem 0; }}
+    th, td {{ border: 1px solid #ddd; padding: 8px; text-align: left; }}
+    th {{ background: #f0f0f0; }}
+    .mermaid {{ background: #fff; border: 1px solid #e0e0e0; border-radius: 6px; padding: 1rem; margin: 1rem 0; overflow-x: auto; text-align: center; }}
+  </style>
+</head>
+<body>
+  {markdown_html}
+  <script src="https://cdn.jsdelivr.net/npm/mermaid@10/dist/mermaid.min.js"></script>
+  <script>
+    mermaid.initialize({{ startOnLoad: true, theme: '{theme}' }});
+  </script>
+</body>
+</html>
+"""
+
+
+def main() -> int:
+    import argparse
+
+    parser = argparse.ArgumentParser(description="Convert ASCII flowcharts in Markdown to Mermaid.")
+    parser.add_argument("input", nargs="?", help="Input Markdown file (default: stdin)")
+    parser.add_argument("output", nargs="?", help="Output file (default: stdout)")
+    parser.add_argument("--html", action="store_true", help="Output a full HTML page instead of Markdown")
+    parser.add_argument("--title", default="Converted Document", help="HTML page title (used with --html)")
+    parser.add_argument("--theme", default="default", help="Mermaid theme (used with --html)")
+    args = parser.parse_args()
+
+    if args.input and args.input != "-":
+        text = Path(args.input).read_text(encoding="utf-8")
     else:
-        print(f"Error: unknown command '{cmd}'", file=sys.stderr)
-        sys.exit(1)
+        text = sys.stdin.read()
 
-    print(json.dumps(result, ensure_ascii=False, indent=2))
+    transformed = transform_markdown(text)
+
+    if args.html:
+        try:
+            import markdown as md_lib
+        except ImportError as exc:
+            print("ERROR: --html requires the 'markdown' Python package.", file=sys.stderr)
+            return 1
+        html_body = md_lib.markdown(transformed, extensions=["tables", "fenced_code", "toc"])
+        output = wrap_html(args.title, html_body, args.theme)
+    else:
+        output = transformed
+
+    if args.output and args.output != "-":
+        Path(args.output).write_text(output, encoding="utf-8")
+    else:
+        sys.stdout.write(output)
+
+    return 0
 
 
 if __name__ == "__main__":
-    main()
+    raise SystemExit(main())
