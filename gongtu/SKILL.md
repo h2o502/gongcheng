@@ -1,7 +1,13 @@
 ---
-name: gongtu
-description: 工图 (gongtu) — 把 PlantUML/Mermaid/D2/Graphviz 等 27 种图源码渲染成 SVG/PNG/PDF 图片。当用户要求"画图/渲染架构图/生成流程图/转 SVG/画类图/画时序图"时触发。
+slug: gongtu
+displayName: 工图
+version: 1.0.0
+summary: 把 PlantUML/Mermaid/D2/Graphviz 等 27 种图源码渲染成 SVG/PNG/PDF 图片。
 license: MIT
+name: gongtu
+description: |
+  工图 (gongtu) — 把 PlantUML/Mermaid/D2/Graphviz 等 27 种图源码渲染成 SVG/PNG/PDF 图片。
+  当用户要求"画图/渲染架构图/生成流程图/转 SVG/画类图/画时序图"时触发。
 ---
 
 # 工图 (gongtu) — Diagram Renderer Skill

@@ -1,6 +1,13 @@
 ---
+slug: gongkong
+displayName: 工控
+version: 1.0.0
+summary: 项目配置注入层，通过 config.yaml 向 gongcheng 提供项目专属配置。
+license: MIT
 name: gongkong
-description: 项目配置注入层 — 读取同目录 config.yaml，向 gongcheng 提供项目专属配置（Git 仓库/SSH/部署路径/memory/高风险文件，及可选扩展字段）。换项目时只需改 config.yaml，SKILL.md 不动。
+description: |
+  项目配置注入层 — 读取同目录 config.yaml，向 gongcheng 提供项目专属配置
+  （Git 仓库/SSH/部署路径/memory/高风险文件，及可选扩展字段）。换项目时只需改 config.yaml，SKILL.md 不动。
 ---
 
 # 工控 (gongkong) — 项目配置注入层

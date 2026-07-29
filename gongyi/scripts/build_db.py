@@ -103,75 +103,6 @@ def get_file_extensions(language: str) -> List[str]:
 
 
 # =============================================================================
-# 函数调用提取（轻量正则，非 tree-sitter 语义级）
-# 说明：比现状（无）强，比视频标准（符号级语义解析）弱。
-#       能识别 direct call，不能识别多态/反射/动态分发。
-#       用于填 schema 已预留的 symbols.calls/called_by 字段。
-# =============================================================================
-
-GO_KEYWORDS = {
-    'if', 'for', 'switch', 'return', 'func', 'var', 'const', 'type', 'go',
-    'defer', 'select', 'case', 'break', 'continue', 'fallthrough', 'range',
-    'make', 'new', 'len', 'cap', 'append', 'copy', 'delete', 'panic',
-    'recover', 'print', 'println', 'error',
-}
-PY_KEYWORDS = {
-    'if', 'for', 'while', 'return', 'def', 'class', 'import', 'from', 'try',
-    'except', 'finally', 'with', 'yield', 'lambda', 'print', 'isinstance',
-    'range', 'len', 'super', 'self', 'cls',
-}
-JS_KEYWORDS = {
-    'if', 'for', 'while', 'return', 'function', 'const', 'let', 'var',
-    'class', 'new', 'await', 'async', 'switch', 'case', 'break', 'continue',
-    'console', 'require', 'import', 'export', 'typeof', 'instanceof',
-}
-
-_NEXT_FUNC_PATTERNS = {
-    'go': re.compile(r'^\s*func\s'),
-    'python': re.compile(r'^\s*(?:async\s+)?def\s'),
-    'javascript': re.compile(
-        r'^\s*(?:export\s+)?(?:async\s+)?function\s'
-        r'|^\s*(?:export\s+)?(?:const|let|var)\s+\w+\s*=\s*(?:async\s+)?\('
-    ),
-    'typescript': re.compile(
-        r'^\s*(?:export\s+)?(?:async\s+)?function\s'
-        r'|^\s*(?:export\s+)?(?:const|let|var)\s+\w+\s*=\s*(?:async\s+)?\('
-    ),
-}
-
-_CALL_KEYWORDS = {
-    'go': GO_KEYWORDS, 'python': PY_KEYWORDS,
-    'javascript': JS_KEYWORDS, 'typescript': JS_KEYWORDS,
-}
-
-
-def extract_calls_in_function(lines: List[str], start_line: int,
-                               func_name: str, language: str) -> List[str]:
-    """提取函数体内的调用（轻量正则版）
-
-    返回去重后的被调用符号名列表。
-    不能识别：多态、反射、动态分发、跨语言桥接。
-    """
-    keywords = _CALL_KEYWORDS.get(language, set())
-    next_func = _NEXT_FUNC_PATTERNS.get(language)
-
-    body_lines = []
-    for i in range(start_line, len(lines)):
-        if i > start_line and next_func and next_func.match(lines[i]):
-            break
-        body_lines.append(lines[i])
-
-    body = "\n".join(body_lines)
-    call_pattern = re.compile(r'\b(\w+)\s*\(')
-    calls = set()
-    for m in call_pattern.finditer(body):
-        name = m.group(1)
-        if name not in keywords and name != func_name:
-            calls.add(name)
-    return sorted(calls)
-
-
-# =============================================================================
 # Go 解析器
 # =============================================================================
 
@@ -220,8 +151,6 @@ def parse_go_file(filepath: Path) -> Dict[str, Any]:
         if returns:
             sig += f" {returns}"
 
-        calls = extract_calls_in_function(lines, line_num, func_name, 'go')
-
         result["functions"].append({
             "name": func_name,
             "signature": sig,
@@ -229,7 +158,6 @@ def parse_go_file(filepath: Path) -> Dict[str, Any]:
             "params": params,
             "returns": returns,
             "line": line_num,
-            "calls": calls,
         })
 
     # 提取结构体
@@ -347,14 +275,11 @@ def parse_python_file(filepath: Path) -> Dict[str, Any]:
     )
     for match in func_pattern.finditer(content):
         line_num = content[:match.start()].count('\n') + 1
-        func_name = match.group(1)
-        calls = extract_calls_in_function(lines, line_num, func_name, 'python')
         result["functions"].append({
-            "name": func_name,
+            "name": match.group(1),
             "params": match.group(2).strip(),
             "returns": match.group(3).strip() if match.group(3) else "",
             "line": line_num,
-            "calls": calls,
         })
 
     # 提取类
@@ -407,7 +332,6 @@ def parse_js_file(filepath: Path) -> Dict[str, Any]:
 
     with open(filepath, 'r', encoding='utf-8', errors='ignore') as f:
         content = f.read()
-    lines = content.split('\n')
 
     # 提取函数
     patterns = [
@@ -418,13 +342,10 @@ def parse_js_file(filepath: Path) -> Dict[str, Any]:
     for pattern in patterns:
         for match in re.finditer(pattern, content):
             line_num = content[:match.start()].count('\n') + 1
-            func_name = match.group(1)
-            calls = extract_calls_in_function(lines, line_num, func_name, 'javascript')
             result["functions"].append({
-                "name": func_name,
+                "name": match.group(1),
                 "params": match.group(2).strip() if match.group(2) else "",
                 "line": line_num,
-                "calls": calls,
             })
 
     # 提取类/组件
@@ -581,42 +502,6 @@ def record_change_log(conn: sqlite3.Connection, changes: List[Dict], author: str
             author,
         ))
     conn.commit()
-
-
-def rebuild_called_by(conn: sqlite3.Connection):
-    """根据 symbols.calls 反向构建 called_by 字段
-
-    calls 是 caller → [callee_id, ...] 的正向关系
-    called_by 是 callee → [caller_id, ...] 的反向关系
-    每次 build 完成后调用一次，保持索引一致。
-    """
-    cursor = conn.cursor()
-    cursor.execute("SELECT id, name, calls FROM symbols WHERE calls IS NOT NULL AND calls != '[]'")
-    rows = cursor.fetchall()
-
-    # name -> [sym_id] 映射（同名符号可能存在多个）
-    name_to_ids = {}
-    for sym_id, name, _ in rows:
-        name_to_ids.setdefault(name, []).append(sym_id)
-
-    # 反向构建：callee_id -> [caller_id, ...]
-    called_by_map = {}
-    for sym_id, name, calls_json in rows:
-        try:
-            calls = json.loads(calls_json) if calls_json else []
-        except json.JSONDecodeError:
-            calls = []
-        for callee_name in calls:
-            for callee_id in name_to_ids.get(callee_name, []):
-                called_by_map.setdefault(callee_id, []).append(sym_id)
-
-    # 写回（先清空再填）
-    cursor.execute("UPDATE symbols SET called_by = '[]'")
-    for callee_id, caller_ids in called_by_map.items():
-        cursor.execute("UPDATE symbols SET called_by = ? WHERE id = ?",
-                       (json.dumps(caller_ids), callee_id))
-    conn.commit()
-    print(f"  反向索引: {len(called_by_map)} 个符号被调用")
 
 
 # =============================================================================
@@ -797,7 +682,6 @@ def extract_symbols(modules: List[Dict]) -> List[Dict]:
                 "params": func.get("params", ""),
                 "returns": func.get("returns", ""),
                 "line_number": func.get("line", 0),
-                "calls": json.dumps(func.get("calls", [])),
             })
 
         # 结构体
@@ -906,13 +790,12 @@ def insert_data(conn: sqlite3.Connection, data: Dict[str, Any]):
     # symbols
     for sym in data.get("symbols", []):
         cursor.execute("""
-            INSERT INTO symbols (module_id, name, signature, role, receiver, params, returns, line_number, calls)
-            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+            INSERT INTO symbols (module_id, name, signature, role, receiver, params, returns, line_number)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?)
         """, (
             sym.get("module_id", ""), sym["name"], sym.get("signature", ""),
             sym.get("role", ""), sym.get("receiver"), sym.get("params", ""),
             sym.get("returns", ""), sym.get("line_number", 0),
-            sym.get("calls", "[]"),
         ))
 
     # api_routes
@@ -1204,10 +1087,6 @@ def _do_full_build(conn, project_path, language, ai_dir, author=None):
                 "description": f"首次构建知识库，扫描 {len(source_files)} 个文件"}]
     record_change_log(conn, changes, author)
 
-    # 构建调用反向索引
-    print("构建调用反向索引...")
-    rebuild_called_by(conn)
-
     # 生成 CONTEXT.md
     print("\n生成 CONTEXT.md...")
     generate_context_md(conn, ai_dir / "CONTEXT.md")
@@ -1327,7 +1206,6 @@ def _do_incremental_update(conn, project_path, language, ai_dir, author=None):
                 "params": func.get("params", ""),
                 "returns": func.get("returns", ""),
                 "line_number": func.get("line", 0),
-                "calls": json.dumps(func.get("calls", [])),
                 "change_type": "added" if filepath in added else "modified",
             })
 
@@ -1372,13 +1250,12 @@ def _do_incremental_update(conn, project_path, language, ai_dir, author=None):
     for sym in all_changed_symbols:
         cursor = conn.cursor()
         cursor.execute("""
-            INSERT INTO symbols (module_id, name, signature, role, receiver, params, returns, line_number, calls)
-            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+            INSERT INTO symbols (module_id, name, signature, role, receiver, params, returns, line_number)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?)
         """, (
             sym.get("module_id", ""), sym["name"], sym.get("signature", ""),
             sym.get("role", ""), sym.get("receiver"), sym.get("params", ""),
             sym.get("returns", ""), sym.get("line_number", 0),
-            sym.get("calls", "[]"),
         ))
 
     # 重新提取路由（基于变更后的模块）
@@ -1404,10 +1281,6 @@ def _do_incremental_update(conn, project_path, language, ai_dir, author=None):
 
     # 记录变更日志
     record_change_log(conn, changes, author)
-
-    # 重建调用反向索引（全量重建：变更模块的符号关系会扩散影响其他模块的 called_by）
-    print("构建调用反向索引...")
-    rebuild_called_by(conn)
 
     # 更新 CONTEXT.md
     print("\n生成 CONTEXT.md...")

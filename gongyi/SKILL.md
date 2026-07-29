@@ -1,4 +1,9 @@
 ---
+slug: gongyi
+displayName: 工艺
+version: 1.0.0
+summary: AI 协同编程的项目记忆中继站，SQLite 知识库 + 开发/审查/交接三模式。
+license: MIT
 name: gongyi
 description: |
   工艺 (gongyi) — AI 协同编程的项目记忆中继站（原 MemBridge 通忆）。
@@ -17,9 +22,11 @@ description: |
   - 审查模式：人类快速查看 AI 做了什么、是否踩红线
   - 交接模式：完整 Markdown 文档，跨 session / agent / 团队传递
 
-  触发场景：
-  "项目知识库"、"AI 上下文"、"代码交接"、"版本迭代"、
-  "不同 AI 之间怎么共享项目信息"、"让新 AI 快速接手老项目"
+  触发场景（写入）：
+  "修改代码后更新记忆"、"版本交接"、"导出项目说明书"
+  触发场景（查询）：
+  "查询项目约束/红线"、"改 X 模块前要查什么"、"接手 session 前查最近变更"、
+  "重构影响面评估"、"这个 API 谁在用"、"数据库表结构查询"、"ADR 决策追溯"
 license: MIT
 ---
 
@@ -67,6 +74,33 @@ license: MIT
 
 **注意**：知识库路径（`.ai/project.ai.db`）由 `gongkong/config.yaml` 的 `memory.db_path` 字段提供，相对 `project.root`。换项目时改 config.yaml 即可。
 
+## 查询决策树（AI 改动前必查）
+
+> **只读查询不需要 build**。DB 已存在时直接调 `query_db.py`；DB 不存在则降级读 `CONTEXT.md` 或源码，并在本轮改完代码后跑一次 `build_db.py` 首次构建。
+
+| 信号 | 查哪张表 | 示例 SQL |
+|------|---------|---------|
+| 会话启动 / 接手 session | change_log + constraints + meta | 见下方"会话启动查询序列" |
+| 改 X 模块前 | constraints | `SELECT rule, severity FROM constraints WHERE affected_modules LIKE '%X%' AND severity IN ('forbidden','critical')` |
+| 评估重构影响面 | symbols + api_routes | `SELECT name, called_by FROM symbols WHERE module_id IN (SELECT id FROM modules WHERE name='X')`；`SELECT method, path, handler FROM api_routes WHERE handler LIKE '%X%'` |
+| 排查某函数 | symbols | `SELECT signature, calls, called_by, line_number FROM symbols WHERE name='X'` |
+| 追溯某决策 | decisions | `SELECT title, context, decision, consequences FROM decisions WHERE code='ADR-001'` |
+| 查表结构 | tables | `SELECT purpose, fields, relations FROM tables WHERE name='X'` |
+| 查某模块详情 | modules | `SELECT responsibility, entry_func, file_path, deps, constraints FROM modules WHERE name='X'` |
+| 查认证相关 API | api_routes | `SELECT method, path, handler FROM api_routes WHERE auth != 'none'` |
+
+### 会话启动查询序列
+
+新 session 启动时（与 gongyou 协议1 配合），若 DB 存在，跑一次以下三连查建立心智模型：
+
+```bash
+python query_db.py <db> --sql "SELECT timestamp, module, change_type, description, author FROM change_log ORDER BY id DESC LIMIT 10"
+python query_db.py <db> --sql "SELECT rule, affected_modules FROM constraints WHERE severity='forbidden'"
+python query_db.py <db> --sql "SELECT key, value FROM meta"
+```
+
+> DB 不存在时降级：读 `CONTEXT.md` → 读 `PROJECT_MEMORY.md` → 读源码。本轮改完代码后由 `build_db.py` 首次构建。
+
 ## 工作流程
 
 ### 首次接入项目
@@ -85,8 +119,6 @@ cd <project.root>/.ai && python3 build_db.py <project.root> --incremental --auth
 # AI 按需查询
 cd <project.root>/.ai && python3 query_db.py "这次循环改了什么"       # 查看最近变更
 cd <project.root>/.ai && python3 query_db.py billing                  # 查 billing 约束
-cd <project.root>/.ai && python3 query_db.py "谁调用 validateToken"   # 查调用方（符号级，精确到行号）
-cd <project.root>/.ai && python3 query_db.py "调用关系 validateToken" # 查被调用方
 cd <project.root>/.ai && python3 query_db.py --sql "SELECT rule FROM constraints WHERE severity='forbidden'"
 ```
 
@@ -224,9 +256,17 @@ bash init_project.sh <项目路径>
 1. **首次接触项目** — 先读 `CONTEXT.md`，不要直接读源码
 2. **查询精确信息** — 用 `query_db.py --sql` 而不是读整个 spec
 3. **修改代码前** — 查 constraints 表中 related module 的 forbidden/critical 规则
-4. **修改函数前** — 查调用关系：`query_db.py "谁调用 validateToken"`，拿到所有调用方 file:line，不用 grep 整个代码库
-5. **修改代码后** — 运行 `build_db.py --incremental` 更新知识库（calls/called_by 会自动重建）
-6. **需要交接时** — 运行 `export_md.py` 生成完整文档
+4. **修改代码后** — 运行 `build_db.py --incremental` 更新知识库
+5. **需要交接时** — 运行 `export_md.py` 生成完整文档
+
+### 两套 memory 分工（避免重复查询）
+
+| 记忆源 | 存什么 | 何时查 |
+|--------|--------|--------|
+| trae memory（`/root/.trae-cn/memory`） | 跨会话用户偏好、项目硬约束、话题历史 | 会话启动 memory pass、需要历史决策脉络 |
+| gongyi SQLite | 项目代码结构化知识：模块/符号/API/表/ADR/约束/变更日志 | 改代码前查影响面、查具体模块约束、追溯 ADR |
+
+**规则**：问"人/会话/偏好"→ trae memory；问"代码/模块/表/决策"→ gongyi。
 
 ### 给人类的建议
 
@@ -234,13 +274,12 @@ bash init_project.sh <项目路径>
 2. **查看决策历史** — 读 `PROJECT_SPEC.md` 的 ADR 章节
 3. **查看红线** — 读约束清单中标记为 forbidden 的条目
 4. **手工补充 ADR** — 可以在数据库中直接 INSERT 到 decisions 表
-5. **知识库是 git 资产** — `.ai/*.ai.db` 随代码提交，新同事 clone 即拥有项目记忆，不用重新索引
 
 ## 与其他工字 skill 的协作
 
-- **gongcheng**：gongyi 是 gongcheng 工作类型表第 4 行（记忆/交接）的执行 skill
+- **gongcheng**：gongyi 是 gongcheng 工作类型表第 4 行（写入）+ 第 4b 行（查询）的执行 skill
 - **gongkong**：知识库路径由 `gongkong/config.yaml` 的 `memory.db_path` 注入
-- **gongyou**：gongyou 协议2 改动前检查可查询 gongyi 的 constraints 表
+- **gongyou**：协议1 启动时执行"会话启动查询序列"拉最近变更+红线；协议2 改动前检查第 1 步先查 gongyi `constraints`（`affected_modules` 命中目标模块）+ `symbols.called_by`（反向依赖），DB 不存在才降级到 `check-impact.sh` 的本地 `#@` 索引
 - **gongsheji**：设计阶段可查询 gongyi 了解现有架构和约束
 
 ## 适用场景

@@ -1,13 +1,13 @@
 ---
 slug: gongcheng
 displayName: 工成 · Vibecoding 全生命周期 AI 工程 Skill
-version: 1.0.1
-summary: 覆盖 Vibecoding 全生命周期的工程编排层，用 PlantUML 固化架构，具备自我迭代能力。
+version: 1.3.0
+summary: 覆盖 Vibecoding 全生命周期的工程编排层，用 PlantUML 固化架构，具备自我迭代能力。v1.3 明确 gongxu（工需）与 gongchan（工产）分工，gongxu 产出工需建议书作为 gongchan 的强制输入。
 license: MIT
 name: gongcheng
 description: |
   首个必须加载的通用工程编排 Skill。
-  沉淀自多个 AI 项目落地实战经验，贯穿需求澄清、架构设计、代码实现、文档沉淀与持续复盘。
+  沉淀自多个 AI 项目落地实战经验，贯穿需求澄清、产品设计、架构设计、代码实现、文档沉淀与持续复盘。
   以 PlantUML 记录项目架构，以规则驱动工作流自我迭代。
   服务器代码更新由 gongkong/config.yaml 配置；开源版仅含模板，请勿提交账号密码。
 tags:
@@ -22,12 +22,12 @@ tags:
 
 # 工成 (gongcheng) — Vibecoding 全生命周期 AI 工程 Skill
 
-> **首个必须加载的通用工程编排 Skill**。沉淀自多个 AI 项目落地实战经验，贯穿需求澄清、架构设计、代码实现、文档沉淀与持续复盘。
+> **首个必须加载的通用工程编排 Skill**。沉淀自多个 AI 项目落地实战经验，贯穿需求澄清、产品设计、架构设计、代码实现、文档沉淀与持续复盘。
 > **不含项目专属配置**：Gitea 地址、SSH 别名、部署路径等全部由 `gongkong/config.yaml` 注入。
 > 以 PlantUML 记录项目架构，以规则驱动工作流自我迭代。开源版仅含模板，请勿提交账号密码。
 
 本包是 gongcheng 及其子 skill 的开源发布形态。gongcheng 既是包名也是核心编排 skill，
-其余工字系列 skill（gongsheji/gongyi/gonghua/gongtu/gongyou/gongwen/gongkong）和工具层（tools/ 下含 md2docx/svg/pdf/excel/ppt/docx）作为子目录包含在本包中。
+其余工字系列子 skill（gongwen/gongxu/gongchan/gongsheji/gongyi/gonghua/gongtu/gongyou/gongshu/gongkong）和工具层（tools/ 下含 md2docx/md2html/svg/pdf/excel/ppt/docx）作为子目录包含在本包中。
 
 ---
 
@@ -38,7 +38,7 @@ tags:
 | # | 工作类型 | 必须加载的通用 skill | 项目配置（由 gongkong/config.yaml 注入） | 违反后果 |
 |---|---------|---------------------|------------------------------------------|---------|
 | 1 | **修改代码/提交代码/部署** | gongsheji + gongyou + git-management | `git.repositories`（项目仓库列表） | 代码无法追溯，禁止操作 |
-| 2 | **文档创建/转换（.md ↔ .docx）** | md2docx | - | 格式不规范，禁止操作 |
+| 2 | **文档创建/转换（.md ↔ .docx / .html）** | md2docx + md2html | - | 格式不规范，禁止操作 |
 | 3 | **项目设计/架构决策/方案规划** | gongsheji | - | 缺少规范流程，禁止操作 |
 | 4 | **改动代码/更新项目状态** | gongyi | `memory.db_path`（知识库路径） | 知识库不同步，禁止操作 |
 | 5 | **界面设计/前端页面开发/视觉改造** | gonghua | - | 防止 AI 生成千篇一律的通用界面，确保设计质量 |
@@ -48,10 +48,18 @@ tags:
 | 9 | **方案审问/需求澄清/商业三问** | gongwen | - | 需求未澄清就写代码，返工率极高 |
 | 10 | **Office 文档读写（.xlsx/.pptx/.docx/.pdf）** | tools/excel + tools/ppt + tools/docx + tools/pdf | - | 直接改 OOXML 易破坏样式/公式/布局 |
 | 11 | **SVG 图形创建/优化** | tools/svg | - | 缺 viewBox/无障碍属性，可伸缩性与可访问性差 |
+| 12 | **数据库读写/批量数据操作** | gongshu | `db.connections`（数据库连接清单）+ `db.sensitive_fields`（敏感字段） | 数据不可恢复，禁止操作 |
 
 **额外红线（代码修改时必须遵守）**：
 - **禁止使用全局字符串替换**（如 `sed -i s/old/new/ file`、Python `content.replace(old,new)`、PowerShell `-replace` 等）。搜索到的匹配项可能分布在不相关的函数/模块中，修改一处却破坏多处。
 - **正确做法**：先定位到具体行/函数，用精确的行级或范围级方式修改（`sed -i 123s/old/new/` 按行号替换、在本地用工具读取-精确编辑-回写、或直接用 file edit 操作）。每次修改后必须编译/测试确认无误。
+
+**额外红线（数据操作时必须遵守）**：
+- **禁止无备份执行 L3/L4 数据操作**（批量 UPDATE/DELETE、DROP/TRUNCATE、覆盖敏感字段）。必须先 `CREATE TABLE backup_<table>_<date> AS SELECT ...` 备份受影响行，再执行。
+- **禁止覆盖敏感字段前不导出原值**（password_hash/token/secret/balance 等）。必须先 `CREATE TABLE audit_<table>_<date> AS SELECT id, <敏感字段>, NOW() FROM ...` 记录原值。
+- **禁止无 WHERE 的 UPDATE/DELETE**。如必须全表操作，按 L4 处理，需用户二次确认。
+- **禁止默认选择破坏性更大的指令理解**。遇到歧义必须追问（详见 gongshu 协议4）。
+- **正确做法**：先 EXPLAIN/COUNT 预估影响 → 备份 → 生成回滚 SQL → 用户确认 → 执行 → 验证 → 审计日志。
 
 **检查流程**（每次开始工作前执行）：
 1. **加载 gongkong**：读取 `gongkong/config.yaml`，注入项目专属配置（git 仓库/SSH/部署路径/memory 路径/高风险文件清单）
@@ -161,89 +169,164 @@ commit message: `auto-snapshot: [日期] 自动备份`
 
 > 本包目录结构：gongcheng 本身是根 skill，其余工字系列 skill 是子目录，工具类在 `tools/` 下。
 
-### gongsheji（工设计）
+### 3.1 工字系列子 skill
+
+按 Vibecoding 工作流顺序排列：
+
+```
+gongwen（工问）→ gongxu（工需）→ gongchan（工产）→ gongsheji（工设计）
+       ↓              ↓                  ↓                  ↓
+   商业方案      工需清单/标准       产品设计/PRD         代码实现
+```
+
+横向守护与记忆：`gongyou`（文件守护）、`gongshu`（数据守护）、`gongtu`（图渲染）、`gonghua`（前端实现）、`gongyi`（项目记忆）、`gongkong`（项目配置）
+
+#### gongwen（工问）
+- **位置**：`gongwen/`
+- **功能**：方案审问与方案底稿。把客户文档/口述想法通过追问、压力测试、矛盾检测逼问成结构化方案底稿
+- **产出**：`draft.yaml` + `PROPOSAL.md` + `PENDING.md`，定稿后移交 gongxu 或 gongchan
+- **商业三问**：商业项目必填"卖什么/给谁/为什么买你的"，含反模式检测
+- **触发场景**：客户给方案文档要实现、想法需要追问清楚、写 spec 前先审问需求
+
+#### gongxu（工需）
+- **位置**：`gongxu/`
+- **功能**：工程需求自驱引擎。让人类和 AI 在工程协作中自然生长出"需要做什么"，建立自驱标准并持续反刍
+- **产出**：《任务信号卡》《追问清单》《工需标准 v1.0》《工需清单》《自生需求补充》《工需建议书》
+- **落地路径**：`docs/gongxu/GX-YYYYMMDD-XXX/`
+- **边界**：不画图、不写代码、不写具体数据字段
+- **触发场景**：用户开始新工程任务、发现理解偏差、交付前验收需求完整性
+- **与 gongchan 关系**：gongxu 产出是 gongchan 的**强制输入**
+
+#### gongchan（工产）
+- **位置**：`gongchan/`
+- **功能**：从需求澄清到产品设计的完整流程。接收 gongxu 工需建议书，产出 PRD/架构/数据/界面/开发交接文档
+- **输入**：优先读取 `docs/gongxu/GX-YYYYMMDD-XXX/03_needs.md` 和 `02_standard_v1.md`；如无则执行内置快速需求澄清
+- **核心机制**：4 大阶段 18 步，含 demon、分项开会、架构反刍、数据设计、界面设计
+- **边界**：不做商业价值判断、不替代 gongxu 建立验收标准
+- **触发场景**：新产品设计、系统重设计、从零规划产品
+- **与 gongxu 关系**：阶段二/三必须逐项对照工需清单，缺失时回退 gongxu
+
+#### gongsheji（工设计）
 - **位置**：`gongsheji/`
 - **功能**：严格工程设计工作流。先写 spec → 写 plan → 小步执行（优先 TDD）→ 评审完成
 - **触发场景**：新功能设计、架构决策、方案规划、重大重构
 
-### gongyi（工艺）
-- **位置**：`gongyi/`
-- **功能**：AI 协同编程的项目记忆中继站。增量更新 SQLite 知识库，支持开发/审查/交接三种模式
-- **脚本**：`build_db.py`（构建库）、`query_db.py`（查询）、`export_md.py`（导出文档）
-- **知识库路径**：由 `gongkong/config.yaml` 的 `memory.db_path` 提供
-- **触发场景**：修改代码后更新记忆、查询项目上下文、版本交接
-
-### gonghua（工画）
+#### gonghua（工画）
 - **位置**：`gonghua/`
 - **功能**：防止 AI 生成千篇一律的通用界面。读取需求后推断设计方向，输出有辨识度的前端页面
 - **核心机制**：先做 "Design Read" → 设置三个旋钮（DESIGN_VARIANCE / MOTION_INTENSITY / VISUAL_DENSITY）→ 选择设计系统或原生 CSS
 - **触发场景**：新建前端页面、界面视觉改造、组件 UI 设计
 
-### gongtu（工图）
+#### gongtu（工图）
 - **位置**：`gongtu/`
 - **功能**：把 PlantUML/Mermaid/D2/Graphviz 等 27 种图源码渲染成 SVG/PNG/PDF 图片
 - **依赖**：Kroki（MIT 协议），默认公网 API，可自部署
 - **触发场景**：画架构图/类图/时序图/流程图、转 SVG、markdown 图源码可视化
 
-### gongyou（工优）
+#### gongyou（工优）
 - **位置**：`gongyou/`
 - **功能**：连续性任务守护。强制改动前影响检查、渐进式记忆加载、踩坑标注
 - **4 个协议**：会话启动 / 改动前检查 / 踩坑标注 / 状态更新
 - **高风险清单**：由 `gongkong/config.yaml` 的 `high_risk_files` 提供
 - **触发场景**：会话启动时、修改任何文件前、发生修 B 破 A 时、会话结束
 
-### gongwen（工问）
-- **位置**：`gongwen/`
-- **功能**：方案审问与方案底稿。把客户文档/口述想法通过追问、压力测试、矛盾检测逼问成结构化方案底稿
-- **产出**：`draft.yaml` + `PROPOSAL.md` + `PENDING.md`，定稿后移交 gongsheji
-- **商业三问**：商业项目必填"卖什么/给谁/为什么买你的"，含反模式检测
-- **触发场景**：客户给方案文档要实现、想法需要追问清楚、写 spec 前先审问需求
+#### gongshu（工数）
+- **位置**：`gongshu/`
+- **功能**：数据安全守护。强制风险分级、备份、确认门禁、审计日志
+- **4 个协议**：风险分级 / 备份+确认门禁 / 审计日志 / 歧义追问
+- **4 级风险**：L1 只读 / L2 单行写 / L3 批量写 / L4 不可逆
+- **敏感字段清单**：password_hash/token/secret/balance 等，覆盖时自动升级为 L4
+- **高风险 SQL 黑名单**：10 类禁止直接执行的 SQL 模式
+- **触发场景**：任何数据库读写前、批量数据操作、覆盖敏感字段、遇到歧义指令
+- **与 gongyou 互补**：gongyou 守文件，gongshu 守数据
 
-### gongkong（工控）
+#### gongyi（工艺）
+- **位置**：`gongyi/`
+- **功能**：AI 协同编程的项目记忆中继站。增量更新 SQLite 知识库，支持开发/审查/交接三种模式
+- **脚本**：`build_db.py`（构建库）、`query_db.py`（查询）、`export_md.py`（导出文档）
+- **知识库路径**：由 `gongkong/config.yaml` 的 `memory.db_path` 提供
+- **触发场景**：修改代码后更新记忆、查询项目上下文、版本交接
+
+#### gongkong（工控）
 - **位置**：`gongkong/`
 - **功能**：项目配置注入层。读取同目录 `config.yaml`，向 gongcheng 提供项目专属配置
 - **配置文件**：`config.yaml`（真实配置，含密码，**不上传**）+ `config.yaml.example`（脱敏模板，上传）
 - **触发场景**：gongcheng 启动时自动加载
 
-### md2docx（工具）
+### 3.2 工具层
+
+#### 3.2.1 文档转换工具
+
+##### md2docx（工具）
 - **位置**：`tools/md2docx/`
 - **功能**：Markdown 与 Word 双向转换，支持合并单元格、Mermaid 图表渲染、代码高亮、中文排版优化
 - **调用方式**：`python md2docx.py input.md output.docx` 或反向
 - **触发场景**：创建/编辑项目文档（.md/.docx）、导出报告
 - **注意**：属于 tools/ 工具层，不是工程 skill；不改名（有硬编码路径依赖）
 
-### svg（工具）
-- **位置**：`tools/svg/`
-- **功能**：创建和优化 SVG 图形，覆盖 viewBox 缩放、无障碍（role="img"+title）、SVGO 优化、内联 vs `<img>` 嵌入、currentColor 主题化
-- **辅助文件**：`viewbox.md` / `accessibility.md` / `optimization.md` / `embedding.md` / `styling.md`
-- **触发场景**：手写 SVG 图标/图形、优化现有 SVG、确保可访问性与可伸缩性
+##### md2html（工具）
+- **位置**：`tools/md2html/`
+- **功能**：Markdown 转 HTML，自动将 ASCII 流程图转换为 Mermaid 语法，浏览器端渲染
+- **调用方式**：`python md2html.py input.md output.md` 或 `python md2html.py --html input.md output.html`
+- **触发场景**：把设计文档/会议纪要转成可在线浏览的 HTML、将文本流程图转为可视化图表
+- **注意**：范围最小化（A最小），目前只处理 ASCII → Mermaid；复杂图请继续用 gongtu 或 PlantUML
 
-### pdf（工具）
-- **位置**：`tools/pdf/`
-- **功能**：PDF 处理工具集。文本/表格抽取、生成新 PDF、合并/拆分、表单填写（pypdf 等）
-- **触发场景**：抽取 PDF 内容、合并/拆分文档、填表单、批量处理 PDF
+#### 3.2.2 Office 文档工具
 
-### excel（工具）
+##### excel（工具）
 - **位置**：`tools/excel/`
 - **功能**：Microsoft Excel 工作簿读写。公式、日期、类型、格式、合并单元格、模板保真（openpyxl/pandas）
 - **触发场景**：处理 `.xlsx/.xlsm/.xls/.csv`、需保留公式/格式/工作簿结构时
 
-### ppt（工具）
+##### ppt（工具）
 - **位置**：`tools/ppt/`
 - **功能**：Microsoft PowerPoint 演示文稿读写。布局、模板、占位符、备注、图表、视觉 QA（python-pptx）
 - **触发场景**：处理 `.pptx`、需保留布局/占位符/模板保真时
 
-### docx（工具）
+##### docx（工具）
 - **位置**：`tools/docx/`
 - **功能**：Microsoft Word 文档读写。样式、编号、修订追踪、表格、节、兼容性检查（OOXML 感知编辑）
 - **触发场景**：处理 `.docx`、含修订追踪/域/表格/模板、需往返编辑不漂移时
 - **与 md2docx 区别**：md2docx 专做 Markdown↔Word 转换；docx 处理原生 .docx 的深度编辑（OOXML 级）
 
----
+##### pdf（工具）
+- **位置**：`tools/pdf/`
+- **功能**：PDF 处理工具集。文本/表格抽取、生成新 PDF、合并/拆分、表单填写（pypdf 等）
+- **触发场景**：抽取 PDF 内容、合并/拆分文档、填表单、批量处理 PDF
+
+#### 3.2.3 图形工具
+
+##### svg（工具）
+- **位置**：`tools/svg/`
+- **功能**：创建和优化 SVG 图形，覆盖 viewBox 缩放、无障碍（role="img"+title）、SVGO 优化、内联 vs `<img>` 嵌入、currentColor 主题化
+- **辅助文件**：`viewbox.md` / `accessibility.md` / `optimization.md` / `embedding.md` / `styling.md`
+- **触发场景**：手写 SVG 图标/图形、优化现有 SVG、确保可访问性与可伸缩性
 
 ## 四、工作流规范（通用骨架）
 
-### 4.1 代码修改完整流程
+### 4.1 产品/需求设计完整流程
+
+```
+用户提出需求
+  │
+  ├─ 1. 加载 gongcheng（当前 step，通用编排）
+  ├─ 2. 加载 gongkong → 读取 config.yaml 注入项目配置
+  │
+  ├─ 3. 判断需求清晰度
+  │     ├─ 商业价值/目标/约束模糊 → 加载 gongwen → 输出方案底稿
+  │     ├─ 工程需求不清晰 → 加载 gongxu → 输出工需建议书
+  │     └─ 已有 gongxu 产出 → 直接进入 gongchan
+  │
+  ├─ 4. 加载 gongchan → 读取 docs/gongxu/GX-YYYYMMDD-XXX/ 工需清单和标准
+  ├─ 5. gongchan 阶段一：demon + 分项开会 + 语音转录
+  ├─ 6. gongchan 阶段二：模块设计 + 架构汇总 + 反刍 + 工需标准校准
+  ├─ 7. gongchan 阶段三：底层架构一致性检查 + 数据结构 + 界面设计
+  ├─ 8. gongchan 阶段四：开发交接清单 → 交给 gongsheji
+  ├─ 9. 同步记忆 → 加载 gongyi → build_db --incremental
+  └─ 10. 如涉及文档 → 加载 md2docx/md2html → 生成/更新文档
+```
+
+### 4.2 代码修改完整流程
 
 ```
 用户提出需求
@@ -251,15 +334,42 @@ commit message: `auto-snapshot: [日期] 自动备份`
   ├─ 1. 加载 gongcheng（当前 step，通用编排）
   ├─ 2. 加载 gongkong → 读取 config.yaml 注入项目配置
   ├─ 3. 判断工作类型 → 加载对应通用子 skill
-  ├─ 4. gongyou 协议2（改动前影响检查，高风险等用户确认）
+  ├─ 4. gongyou 协议2（改动前文件影响检查，高风险等用户确认）
+  ├─ 4b. 如涉及数据库 → gongshu 协议1（数据风险分级）+ 协议2（备份+确认门禁）
   ├─ 5. 如需设计 → 加载 gongsheji → 写 spec/plan
   ├─ 6. 修改代码 → gongkong 处理部署（用 config.yaml 的 SSH/部署配置）
   ├─ 7. git-management 提交（用 config.yaml 的 git 仓库配置）
   ├─ 8. 同步记忆 → 加载 gongyi → build_db --incremental
-  └─ 9. 如涉及文档 → 加载 md2docx → 生成/更新文档
+  ├─ 9. 如涉及文档 → 加载 md2docx → 生成/更新文档
+  └─ 10. 如涉及数据操作 → gongshu 协议3（写入审计日志）
 ```
 
-### 4.2 服务器文件操作规范
+### 4.3 数据操作完整流程
+
+```
+需要执行 SQL / 数据库操作
+  │
+  ├─ 1. 加载 gongcheng → 加载 gongshu
+  ├─ 2. gongshu 协议1：风险分级
+  │     ├─ L1 只读 → 直接执行
+  │     ├─ L2 单行写 → 记录日志后执行
+  │     ├─ L3 批量写 → 进入协议2
+  │     └─ L4 不可逆/敏感字段 → 进入协议2（加强）
+  │
+  ├─ 3. gongshu 协议2：备份 + 确认门禁
+  │     ├─ 步骤1：CREATE TABLE backup_xxx AS SELECT ...（备份受影响行）
+  │     ├─ 步骤2：生成回滚 SQL → /tmp/rollback_xxx.sql
+  │     ├─ 步骤3：用户确认（L3 需 y/yes，L4 需"我确认执行"）
+  │     └─ 步骤4：执行原 SQL + 验证影响行数
+  │
+  ├─ 4. gongshu 协议4：歧义追问（如指令有多种解读）
+  │     └─ 必须追问，禁止默认选择破坏性更大的理解
+  │
+  └─ 5. gongshu 协议3：审计日志
+        └─ 写入 /var/log/ai-data-ops.log
+```
+
+### 4.4 服务器文件操作规范
 
 **优先级**（部署工具由 `gongkong/config.yaml` 的 `deploy` 字段配置）：
 1. `remote.ps1 upload`（或等效部署脚本）— 本地写好完整文件 → 上传覆盖
@@ -272,7 +382,7 @@ commit message: `auto-snapshot: [日期] 自动备份`
 - 在远程命令中拼接含 onclick/引号/括号的 HTML 字符串
 - 用 sed -i 做全局字符串替换
 
-### 4.3 多任务并行
+### 4.5 多任务并行
 
 ```
 收到多个独立任务
@@ -285,17 +395,21 @@ commit message: `auto-snapshot: [日期] 自动备份`
   └─ 6. 合并结果，输出最终结论
 ```
 
-### 4.4 文档处理流程
+### 4.6 文档处理流程
 
 ```
 需要生成/转换文档
   │
   ├─ 1. 加载 gongcheng
-  ├─ 2. 加载 md2docx → 执行转换
-  └─ 3. 如文档描述代码变更 → 加载 git-management + gongyi
+  ├─ 2. 按目标格式选择工具
+  │     ├─ .docx / Word → md2docx
+  │     ├─ .html（含 Mermaid 流程图） → md2html
+  │     └─ 原生 .xlsx/.pptx/.docx/.pdf → tools/excel、tools/ppt、tools/docx、tools/pdf
+  ├─ 3. 执行转换
+  └─ 4. 如文档描述代码变更 → 加载 git-management + gongyi
 ```
 
-### 4.5 界面设计/前端开发流程
+### 4.7 界面设计/前端开发流程
 
 ```
 需要设计或改造页面
@@ -308,7 +422,7 @@ commit message: `auto-snapshot: [日期] 自动备份`
   └─ 6. 如 SSH 部署失败 → 降级到项目配置的远程执行通道
 ```
 
-### 4.6 画图/渲染流程
+### 4.8 画图/渲染流程
 
 ```
 需要画图或渲染图源码
@@ -320,7 +434,7 @@ commit message: `auto-snapshot: [日期] 自动备份`
   └─ 5. 在 markdown 里嵌入 SVG（源码和 SVG 都提交 git）
 ```
 
-### 4.7 工作交接流程
+### 4.9 工作交接流程
 
 ```
 AI 完成一个版本/阶段
@@ -333,7 +447,61 @@ AI 完成一个版本/阶段
 
 ---
 
-## 五、与 gongkong 的协作契约
+## 五、交接产物规范
+
+gongcheng 各子 skill 之间必须按本章规范交接，确保下游 skill 能无条件读取、验证、继承上游产出。
+
+### 5.1 通用要求
+
+1. **产物必须落地为文件**：口头交接无效，必须写入约定路径的 markdown/yaml 文件。
+2. **文件名必须带版本与时间戳**：`GX-YYYYMMDD-XXX`、`GC-YYYYMMDD-XXX` 等，便于追踪。
+3. **每个产物必须包含**：来源、目标读者、核心结论、下一步动作、尚未解决的问题。
+4. **下游必须显性标注覆盖情况**：gongchan 接收 gongxu 产出后，必须在设计文档中标注每个 P0 工需的覆盖位置。
+5. **缺失时回退上游**：下游发现上游产物不满足本章规范，必须回退到上游 skill 补齐，不得自行猜测。
+
+### 5.2 gongxu → gongchan 交接
+
+| 产物 | 文件名 | 位置 | 必填 | gongchan 使用方式 |
+|------|--------|------|------|------------------|
+| 任务信号卡 | `00_signal.md` | `docs/gongxu/GX-YYYYMMDD-XXX/` | 推荐 | 理解原始意图 |
+| 追问清单 | `01_questions.md` | `docs/gongxu/GX-YYYYMMDD-XXX/` | 完整模式必填 | 核对已澄清与未澄清 |
+| 工需标准 v1.0 | `02_standard_v1.md` | `docs/gongxu/GX-YYYYMMDD-XXX/` | **必填** | 作为验收基线 |
+| 工需清单 | `03_needs.md` | `docs/gongxu/GX-YYYYMMDD-XXX/` | **必填** | 阶段二/三逐项对照 |
+| 自生需求补充 | `04_self_needs.md` | `docs/gongxu/GX-YYYYMMDD-XXX/` | 推荐 | 检查是否遗漏隐性需求 |
+| 工需建议书 | `05_proposal.md` | `docs/gongxu/GX-YYYYMMDD-XXX/` | **必填** | 作为整体输入 |
+
+### 5.3 gongchan → gongsheji 交接
+
+| 产物 | 文件名/路径 | 必填 | gongsheji 使用方式 |
+|------|-------------|------|-------------------|
+| 模块设计文档 | `docs/newdesign/01_系统模块设计.md` | 必填 | 理解模块边界 |
+| 架构总览 | `docs/newdesign/00_总览.md` | 必填 | 把握整体结构 |
+| 数据结构设计 | `docs/newdesign/03_数据结构设计_*.md` | 必填 | 建表/字段实现 |
+| 流程闭环设计 | `docs/newdesign/07_业务流程闭环设计.md` | 必填 | 写业务逻辑 |
+| 工需覆盖对照表 | 嵌入在模块设计/闭环设计文档中 | **必填** | 验证 P0 全覆盖 |
+| HTML 静态页/设计稿 | `docs/newdesign/html/` 或等价路径 | 推荐 | 前端实现参考 |
+| 开发交接清单 | `docs/newdesign/99_交接清单.md` | 必填 | 确认进入开发前状态 |
+
+### 5.4 回退触发条件
+
+下游 skill 在以下情况必须回退上游：
+
+- 找不到 `03_needs.md` 或 `02_standard_v1.md`
+- 工需清单中 P0 项为空或无法对应到设计
+- 设计文档未包含工需覆盖对照表
+- 闭环检查发现的缺口根因是需求遗漏而非设计遗漏
+
+### 5.5 记忆同步要求
+
+所有交接产物完成后，必须触发 gongyi 增量更新：
+
+```bash
+python3 build_db.py --incremental <project.root>
+```
+
+---
+
+## 六、与 gongkong 的协作契约
 
 gongcheng 是通用编排层，gongkong 是项目配置层。两者通过 `config.yaml` 解耦：
 
@@ -356,6 +524,10 @@ gongkong（项目专属）
 - `deploy.remote_root` / `deploy.remote_ps1` — 部署路径和工具
 - `memory.db_path` — 知识库 SQLite 路径
 - `high_risk_files[]` — 高风险文件清单（gongyou 协议2 使用）
+- `db.connections[]` — 数据库连接清单（gongshu 使用）
+- `db.sensitive_fields[]` — 项目专属敏感字段（gongshu 使用，追加到默认清单）
+- `db.backup_dir` — 数据库备份目录（gongshu 使用）
+- `db.audit_log` — 数据操作审计日志路径（gongshu 使用）
 
 **可选扩展字段**（项目按需注入）：
 - `remote_execution.url` / `task_dispatch.url` — 远程执行通道、任务派发机制地址（如 WebSocket 代理、CI runner 等）
@@ -364,7 +536,7 @@ gongkong（项目专属）
 
 ---
 
-## 六、扩展指南
+## 七、扩展指南
 
 新增通用子 skill 时：
 1. 在本包目录下创建 `<新skill名>/` 子目录
@@ -382,12 +554,13 @@ gongkong（项目专属）
 
 ---
 
-## 七、快速命令（通用模板）
+## 八、快速命令（通用模板）
 
 | 用户说 | gongcheng 执行 |
 |--------|----------------|
 | "修改...代码" | gongkong 注入配置 → gongyou 影响检查 → gongsheji 工作流 → git-management 提交 → gongyi 更新记忆 |
 | "生成一个关于...的报告" | 加载 md2docx → 生成 .md → 转 .docx |
+| "把 Markdown 转成 HTML" | 加载 md2html → 生成 .html |
 | "设计...功能" | 加载 gongsheji → 写 spec/plan |
 | "总结这一轮干了什么" | 加载 gongyi → export_md → 人类审查 |
 | "提交所有代码" | gongkong 提供 git.repositories → 遍历 rsync → commit + push |
@@ -399,10 +572,13 @@ gongkong（项目专属）
 | "客户给了个方案文档" | 加载 gongwen → 查 gongyi 既有记忆 → 审问 → 方案底稿 → 移交 gongsheji |
 | "处理这个 Excel/PPT/Word/PDF" | 按 extensions 选 tools/excel、tools/ppt、tools/docx、tools/pdf → OOXML 感知读写 |
 | "生成/优化这个 SVG" | 加载 tools/svg → 检查 viewBox/无障碍/SVGO → 输出 |
+| "执行...SQL" / "更新...数据" | gongshu 协议1 风险分级 → 协议2 备份+确认 → 执行 → 协议3 审计 |
+| "重置...用户密码" | gongshu 协议4 歧义追问 → L4 全表备份+原值导出 → 二次确认 |
+| "禁用/删除...用户" | gongshu 协议4 歧义追问 → L4 备份 → 二次确认 → 审计日志 |
 
 ---
 
-## 八、同步 SkillHub 开源注意事项
+## 九、同步 SkillHub 开源注意事项
 
 > 本包开源发布到 SkillHub 时，**必须严格遵守以下规则**，防止账号密码泄露。
 
@@ -476,5 +652,8 @@ MIT。gongtu 子目录的 LICENSE 是 Kroki 依赖的协议声明。
 
 ## 版本
 
+v1.3.0 — 2026-07-28 明确 gongxu（工需）与 gongchan（工产）分工，新增第五章交接产物规范；gongxu 产出作为 gongchan 强制输入；README 增加最小示例
+v1.2.3 — 2026-07-28 将 md2html（Markdown 转 HTML / ASCII 流程图自动转 Mermaid）纳入 gongcheng 工具层；重整第三章子 skill 索引，明确区分工字系列子 skill 与 tools/ 工具层（文档转换 / Office / 图形）。
+v1.1.0 — 2026-07-07 新增 gongshu（工数）数据安全守护 skill，补齐数据层风控缺口；定义 L1-L4 四级风险分级、强制备份、确认门禁、歧义追问协议；源于 2026-07-07 生产事故教训
 v1.0.1 — 2026-07-01 移除 aibuddys 项目专属依赖，改为通用远程执行/任务派发扩展点
 v1.0.0 — 2026-07-01 首个开源版本
