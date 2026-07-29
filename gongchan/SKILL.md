@@ -1,5 +1,8 @@
 ---
 name: "gongchan"
+slug: "gongchan"
+displayName: "工产"
+version: "1.3.0"
 description: "工产 (gongchan) — 从需求澄清到产品设计的完整流程。接收 gongxu 的工需建议书，从 demon 原型、分项会议、语音转录到模块设计、架构反刍、数据结构、界面设计直至开发交接的 4 大阶段 18 步。当用户需要做新产品设计、系统重设计或从零规划产品时触发。"
 ---
 

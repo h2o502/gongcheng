@@ -1,13 +1,13 @@
 ---
 slug: gongcheng
 displayName: 工成 · Vibecoding 全生命周期 AI 工程 Skill
-version: 1.2.3
-summary: 覆盖 Vibecoding 全生命周期的工程编排层，用 PlantUML 固化架构，具备自我迭代能力。v1.2 将 md2html 纳入工具层，文档转换支持 .docx 与 .html 双输出。
+version: 1.3.0
+summary: 覆盖 Vibecoding 全生命周期的工程编排层，用 PlantUML 固化架构，具备自我迭代能力。v1.3 明确 gongxu（工需）与 gongchan（工产）分工，gongxu 产出工需建议书作为 gongchan 的强制输入。
 license: MIT
 name: gongcheng
 description: |
   首个必须加载的通用工程编排 Skill。
-  沉淀自多个 AI 项目落地实战经验，贯穿需求澄清、架构设计、代码实现、文档沉淀与持续复盘。
+  沉淀自多个 AI 项目落地实战经验，贯穿需求澄清、产品设计、架构设计、代码实现、文档沉淀与持续复盘。
   以 PlantUML 记录项目架构，以规则驱动工作流自我迭代。
   服务器代码更新由 gongkong/config.yaml 配置；开源版仅含模板，请勿提交账号密码。
 tags:
@@ -22,12 +22,12 @@ tags:
 
 # 工成 (gongcheng) — Vibecoding 全生命周期 AI 工程 Skill
 
-> **首个必须加载的通用工程编排 Skill**。沉淀自多个 AI 项目落地实战经验，贯穿需求澄清、架构设计、代码实现、文档沉淀与持续复盘。
+> **首个必须加载的通用工程编排 Skill**。沉淀自多个 AI 项目落地实战经验，贯穿需求澄清、产品设计、架构设计、代码实现、文档沉淀与持续复盘。
 > **不含项目专属配置**：Gitea 地址、SSH 别名、部署路径等全部由 `gongkong/config.yaml` 注入。
 > 以 PlantUML 记录项目架构，以规则驱动工作流自我迭代。开源版仅含模板，请勿提交账号密码。
 
 本包是 gongcheng 及其子 skill 的开源发布形态。gongcheng 既是包名也是核心编排 skill，
-其余工字系列子 skill（gongsheji/gongyi/gonghua/gongtu/gongyou/gongwen/gongshu/gongkong）和工具层（tools/ 下含 md2docx/md2html/svg/pdf/excel/ppt/docx）作为子目录包含在本包中。
+其余工字系列子 skill（gongwen/gongxu/gongchan/gongsheji/gongyi/gonghua/gongtu/gongyou/gongshu/gongkong）和工具层（tools/ 下含 md2docx/md2html/svg/pdf/excel/ppt/docx）作为子目录包含在本包中。
 
 ---
 
@@ -215,9 +215,27 @@ commit message: `auto-snapshot: [日期] 自动备份`
 #### gongwen（工问）
 - **位置**：`gongwen/`
 - **功能**：方案审问与方案底稿。把客户文档/口述想法通过追问、压力测试、矛盾检测逼问成结构化方案底稿
-- **产出**：`draft.yaml` + `PROPOSAL.md` + `PENDING.md`，定稿后移交 gongsheji
+- **产出**：`draft.yaml` + `PROPOSAL.md` + `PENDING.md`，定稿后移交 gongxu 或 gongchan
 - **商业三问**：商业项目必填"卖什么/给谁/为什么买你的"，含反模式检测
 - **触发场景**：客户给方案文档要实现、想法需要追问清楚、写 spec 前先审问需求
+
+#### gongxu（工需）
+- **位置**：`gongxu/`
+- **功能**：工程需求自驱引擎。让人类和 AI 在工程协作中自然生长出"需要做什么"，建立自驱标准并持续反刍
+- **产出**：《任务信号卡》《追问清单》《工需标准 v1.0》《工需清单》《自生需求补充》《工需建议书》
+- **落地路径**：`docs/gongxu/GX-YYYYMMDD-XXX/`
+- **边界**：不画图、不写代码、不写具体数据字段
+- **触发场景**：用户开始新工程任务、发现理解偏差、交付前验收需求完整性
+- **与 gongchan 关系**：gongxu 产出是 gongchan 的**强制输入**
+
+#### gongchan（工产）
+- **位置**：`gongchan/`
+- **功能**：从需求澄清到产品设计的完整流程。接收 gongxu 工需建议书，产出 PRD/架构/数据/界面/开发交接文档
+- **输入**：优先读取 `docs/gongxu/GX-YYYYMMDD-XXX/03_needs.md` 和 `02_standard_v1.md`；如无则执行内置快速需求澄清
+- **核心机制**：4 大阶段 18 步，含 demon、分项开会、架构反刍、数据设计、界面设计
+- **边界**：不做商业价值判断、不替代 gongxu 建立验收标准
+- **触发场景**：新产品设计、系统重设计、从零规划产品
+- **与 gongxu 关系**：阶段二/三必须逐项对照工需清单，缺失时回退 gongxu
 
 #### gongkong（工控）
 - **位置**：`gongkong/`
@@ -276,7 +294,29 @@ commit message: `auto-snapshot: [日期] 自动备份`
 
 ## 四、工作流规范（通用骨架）
 
-### 4.1 代码修改完整流程
+### 4.1 产品/需求设计完整流程
+
+```
+用户提出需求
+  │
+  ├─ 1. 加载 gongcheng（当前 step，通用编排）
+  ├─ 2. 加载 gongkong → 读取 config.yaml 注入项目配置
+  │
+  ├─ 3. 判断需求清晰度
+  │     ├─ 商业价值/目标/约束模糊 → 加载 gongwen → 输出方案底稿
+  │     ├─ 工程需求不清晰 → 加载 gongxu → 输出工需建议书
+  │     └─ 已有 gongxu 产出 → 直接进入 gongchan
+  │
+  ├─ 4. 加载 gongchan → 读取 docs/gongxu/GX-YYYYMMDD-XXX/ 工需清单和标准
+  ├─ 5. gongchan 阶段一：demon + 分项开会 + 语音转录
+  ├─ 6. gongchan 阶段二：模块设计 + 架构汇总 + 反刍 + 工需标准校准
+  ├─ 7. gongchan 阶段三：底层架构一致性检查 + 数据结构 + 界面设计
+  ├─ 8. gongchan 阶段四：开发交接清单 → 交给 gongsheji
+  ├─ 9. 同步记忆 → 加载 gongyi → build_db --incremental
+  └─ 10. 如涉及文档 → 加载 md2docx/md2html → 生成/更新文档
+```
+
+### 4.2 代码修改完整流程
 
 ```
 用户提出需求
@@ -294,7 +334,7 @@ commit message: `auto-snapshot: [日期] 自动备份`
   └─ 10. 如涉及数据操作 → gongshu 协议3（写入审计日志）
 ```
 
-### 4.1b 数据操作完整流程
+### 4.3 数据操作完整流程
 
 ```
 需要执行 SQL / 数据库操作
@@ -319,7 +359,7 @@ commit message: `auto-snapshot: [日期] 自动备份`
         └─ 写入 /var/log/ai-data-ops.log
 ```
 
-### 4.2 服务器文件操作规范
+### 4.4 服务器文件操作规范
 
 **优先级**（部署工具由 `gongkong/config.yaml` 的 `deploy` 字段配置）：
 1. `remote.ps1 upload`（或等效部署脚本）— 本地写好完整文件 → 上传覆盖
@@ -332,7 +372,7 @@ commit message: `auto-snapshot: [日期] 自动备份`
 - 在远程命令中拼接含 onclick/引号/括号的 HTML 字符串
 - 用 sed -i 做全局字符串替换
 
-### 4.3 多任务并行
+### 4.5 多任务并行
 
 ```
 收到多个独立任务
@@ -345,7 +385,7 @@ commit message: `auto-snapshot: [日期] 自动备份`
   └─ 6. 合并结果，输出最终结论
 ```
 
-### 4.4 文档处理流程
+### 4.6 文档处理流程
 
 ```
 需要生成/转换文档
@@ -359,7 +399,7 @@ commit message: `auto-snapshot: [日期] 自动备份`
   └─ 4. 如文档描述代码变更 → 加载 git-management + gongyi
 ```
 
-### 4.5 界面设计/前端开发流程
+### 4.7 界面设计/前端开发流程
 
 ```
 需要设计或改造页面
@@ -372,7 +412,7 @@ commit message: `auto-snapshot: [日期] 自动备份`
   └─ 6. 如 SSH 部署失败 → 降级到项目配置的远程执行通道
 ```
 
-### 4.6 画图/渲染流程
+### 4.8 画图/渲染流程
 
 ```
 需要画图或渲染图源码
@@ -384,7 +424,7 @@ commit message: `auto-snapshot: [日期] 自动备份`
   └─ 5. 在 markdown 里嵌入 SVG（源码和 SVG 都提交 git）
 ```
 
-### 4.7 工作交接流程
+### 4.9 工作交接流程
 
 ```
 AI 完成一个版本/阶段
