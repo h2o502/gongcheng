@@ -21,12 +21,13 @@ license: MIT
 
 ## 协议1：会话启动
 
-每次新会话开始时，按顺序加载三层记忆：
+每次新会话开始时，按顺序加载记忆：
 
 1. **读 PROJECT_MEMORY.md**（项目框架记忆）— 架构、命令、硬约束、高风险文件清单
 2. **读 memory.md**（动态状态）— 当前状态、近期决策、活跃问题
 3. **扫描 skills/_meta.json**（踩坑技能索引）— 只读元数据，不读正文
-4. **输出确认**：
+4. **查 gongyi 结构化记忆**（若 `gongkong/config.yaml` 的 `memory.db_path` 指向的 DB 存在）— 执行 gongyi"会话启动查询序列"：拉最近 10 条 `change_log` + `forbidden` 约束 + `meta`。DB 不存在则跳过，本轮改完代码后由 `build_db.py` 首次构建
+5. **输出确认**：
 
 ```
 === 工优已启动 ===
@@ -34,6 +35,8 @@ license: MIT
 活跃问题：<从 memory.md 提取>
 可用技能：<N> 个（按需加载）
 高风险区域：<从 gongkong/config.yaml 的 high_risk_files 提取>
+最近变更：<从 gongyi change_log 提取；DB 缺失则显示"未构建">
+红线：<forbidden 约束 N 条；DB 缺失则显示"未构建">
 ```
 
 **关键原则**：启动时只读 _meta.json 的元数据（~100 tokens/技能），不读技能正文。只有当任务涉及某技能的触发条件时，才加载对应 .md 正文。
@@ -48,13 +51,18 @@ license: MIT
 
 ### 步骤
 
-1. **判断风险等级**：检查目标文件是否匹配 `gongkong/config.yaml` 的 `high_risk_files` 中的 glob 模式
-2. **调用脚本**：`bash <skill-path>/scripts/check-impact.sh <目标文件>`
-3. **阅读影响报告**
-4. **分级处理**：
-   - **高风险**（匹配清单中）→ 输出报告，**等待用户确认**后才动手
+1. **查 gongyi 结构化约束**（DB 存在时）— 按"目标模块名"查：
+   - `constraints`：`SELECT rule, severity FROM constraints WHERE affected_modules LIKE '%模块名%' AND severity IN ('forbidden','critical')`
+   - `symbols.called_by`：`SELECT name, called_by FROM symbols WHERE module_id IN (SELECT id FROM modules WHERE name='模块名')`（反向依赖，查谁调用了该模块的符号）
+   - 命中 `forbidden` → 直接进入高风险等待确认，不继续后续步骤
+   - DB 不存在 → 降级到步骤 3 的本地 `#@` 索引
+2. **判断风险等级**：检查目标文件是否匹配 `gongkong/config.yaml` 的 `high_risk_files` 中的 glob 模式
+3. **调用脚本**：`bash <skill-path>/scripts/check-impact.sh <目标文件>`（基于代码 `#@` 标注的本地依赖索引，与步骤 1 的结构化层互补）
+4. **阅读影响报告**（合并 gongyi 结构化约束 + 本地标注两层）
+5. **分级处理**：
+   - **高风险**（命中 forbidden 或匹配清单中）→ 输出报告，**等待用户确认**后才动手
    - **低风险**（不匹配清单中）→ 输出报告，AI 自行判断是否需要确认
-5. **动手修改**
+6. **动手修改**
 
 ### 影响检查输出格式
 
@@ -62,6 +70,12 @@ license: MIT
 === 影响检查报告 ===
 目标文件：<file>
 风险等级：<高/低>（<原因>）
+
+gongyi 结构化约束（DB）：
+  forbidden：<rule>（影响 <affected_modules>）
+  critical：<rule>
+  反向依赖（symbols.called_by）：<被哪些符号调用>
+  （DB 未构建时显示"未构建，仅依赖本地标注"）
 
 直接依赖（本文件标注）：
   → <file>#<symbol> | <描述>
@@ -255,7 +269,7 @@ bash <skill-path>/scripts/check-impact.sh <目标文件>
 - **gongcheng**：gongyou 是 gongcheng 工作类型表第 10 行（改动前影响检查）的执行 skill
 - **gongkong**：高风险文件清单由 `gongkong/config.yaml` 的 `high_risk_files` 注入
 - **gongsheji**：设计阶段每改一个文件前，gongyou 协议2 做影响检查
-- **gongyi**：gongyou 的踩坑标注可同步到 gongyi 的 constraints 表
+- **gongyi**：协议1 启动时查 gongyi change_log + forbidden 约束；协议2 改动前检查第 1 步查 gongyi constraints + symbols.called_by；踩坑标注可同步到 gongyi constraints 表
 
 ---
 

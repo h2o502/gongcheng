@@ -1,6 +1,6 @@
 # 工字系列 Skill 包 — AI 项目工程能力开源版
 
-一套面向 AI 协同编程的工程项目能力包，按"工程"语义拆分为 8 个工字 skill + 1 个配置层 + 6 个工具，
+一套面向 AI 协同编程的工程项目能力包，按"工程"语义拆分为 8 个工字 skill + 1 个配置层 + 7 个工具，
 通过 `gongcheng` 统一编排。配置与逻辑分离：通用逻辑在本包，项目专属配置由 `gongkong` 注入。
 
 ## 设计哲学
@@ -29,20 +29,35 @@
 | **gongtu** | 工图 | 图渲染，PlantUML/Mermaid/D2/Graphviz 等 27 种 → SVG/PNG/PDF |
 | **gongyou** | 工优 | 连续性任务守护：改动前影响检查 + 渐进式记忆加载 + 踩坑标注 |
 | **gongwen** | 工问 | 方案审问与方案底稿：把模糊需求逼问成结构化方案，含商业三问 |
+| **gongshu** | 工数 | 数据安全守护：风险分级、备份、确认门禁、审计日志 |
 | **gongkong** | 工控 | 项目配置注入层。`SKILL.md` 管逻辑（通用），`config.yaml` 管配置（专属）|
 
 ### 工具层（tools/ 子目录，可扩展）
 
+> 工程层管"流程和规则"，工具层管"具体转换/渲染"。工具独立于工程层，增减不影响编排。
+
+#### 文档转换工具
+
 | 工具 | 职责 |
 |------|------|
 | **tools/md2docx** | Markdown ↔ Word 双向转换（合并单元格、Mermaid、代码高亮、中文排版）|
-| **tools/svg** | SVG 图形创建与优化（viewBox、无障碍、SVGO、currentColor 主题化）|
-| **tools/pdf** | PDF 文本/表格抽取、生成、合并/拆分、表单填写 |
+| **tools/md2html** | Markdown → HTML，ASCII 流程图自动转 Mermaid，浏览器端渲染 |
+
+#### Office 文档工具
+
+| 工具 | 职责 |
+|------|------|
 | **tools/excel** | Excel 工作簿读写（公式、日期、格式、合并单元格、模板保真）|
 | **tools/ppt** | PowerPoint 演示文稿读写（布局、占位符、备注、图表、模板保真）|
 | **tools/docx** | Word 文档深度读写（样式、编号、修订追踪、表格、OOXML 感知编辑）|
+| **tools/pdf** | PDF 文本/表格抽取、生成、合并/拆分、表单填写 |
 
-> 工程层管"流程和规则"，工具层管"具体转换/渲染"。工具独立于工程层，增减不影响编排。
+#### 图形工具
+
+| 工具 | 职责 |
+|------|------|
+| **tools/svg** | SVG 图形创建与优化（viewBox、无障碍、SVGO、currentColor 主题化）|
+
 > md2docx 专做 Markdown↔Word 转换；docx 处理原生 .docx 的 OOXML 级深度编辑，两者互补。
 
 ## 目录结构
@@ -60,11 +75,12 @@ gongcheng/                ← 根 skill（SkillHub 发布入口）
 ├── gongkong/             ← 工控（项目配置，含 config.yaml.example）
 └── tools/
     ├── md2docx/          ← Markdown ↔ Word 转换
-    ├── svg/              ← SVG 创建与优化
-    ├── pdf/              ← PDF 处理
+    ├── md2html/          ← Markdown → HTML / ASCII 流程图转 Mermaid
     ├── excel/            ← Excel 工作簿读写
     ├── ppt/              ← PowerPoint 演示文稿读写
-    └── docx/             ← Word 文档深度读写
+    ├── docx/             ← Word 文档深度读写
+    ├── pdf/              ← PDF 处理
+    └── svg/              ← SVG 创建与优化
 ```
 
 ## 快速上手
@@ -143,7 +159,8 @@ gongtu 依赖 Kroki 渲染服务。两种方式：
 3. gongwen 抽取文档 → 商业判定 → 追问（含商业三问）
 4. gongwen 压力测试 → 定稿 → 输出 draft.yaml + PROPOSAL.md
 5. gongcheng 调度 → 加载 gongsheji → 读 draft.yaml → 写 spec/plan
-6. gongsheji 执行 → gongyou 影响检查 → 改代码
+6. 如涉及数据库 → gongshu 风险分级 + 备份确认
+7. gongsheji 执行 → gongyou 影响检查 → 改代码
 7. git-management 提交 → gongyi 增量更新知识库
 8. gongtu 渲染架构图附入文档
 ```
@@ -175,5 +192,7 @@ gongtu 依赖 Kroki 渲染服务。两种方式：
 
 ## 版本
 
+v1.2.3 — 2026-07-28 将 md2html 纳入工具层，README 同步重整子 skill 与工具层结构
+v1.1.0 — 2026-07-07 新增 gongshu（工数）数据安全守护 skill
 v1.0.1 — 2026-07-01 移除 aibuddys 项目专属依赖，改为通用远程执行/任务派发扩展点
 v1.0 — 2026-07-01 首个开源版本

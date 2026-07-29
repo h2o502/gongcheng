@@ -72,6 +72,35 @@ high_risk_files:
   - "**/index.html"
   - "**/app.{tsx,jsx,js}"
 
+# 数据库连接清单（gongshu 使用）
+# 任何数据库读写操作前，gongshu 会根据此清单连接数据库并进行风险分级
+db:
+  connections:
+    - name: primary
+      type: mysql          # mysql / postgresql / sqlite
+      host: 127.0.0.1
+      port: 3306
+      database: your_db
+      user: your_user
+      password: YOUR_PASSWORD_HERE
+    # - name: sqlite_local
+    #   type: sqlite
+    #   path: /path/to/your.db
+
+  # 项目专属敏感字段（追加到 gongshu 默认清单）
+  # 默认已包含: password_hash/token/secret/balance/email/phone 等
+  # 在此追加项目特有的敏感字段
+  sensitive_fields:
+    - "custom_secret_field"
+    # - "tf_token"
+    # - "api_key"
+
+  # 数据库备份目录（gongshu 协议2 使用）
+  backup_dir: "/backup/mysql"
+
+  # 数据操作审计日志路径（gongshu 协议3 使用）
+  audit_log: "/var/log/ai-data-ops.log"
+
 # ===== 可选扩展字段（项目专属，gongcheng 不强制要求） =====
 
 # 远程执行通道（SSH 失败时的兜底，如 WebSocket 代理、CI runner 等）

@@ -58,18 +58,6 @@ QUERY_PATTERNS = [
     ("(?:函数|符号)\s+(\w+)",
      "SELECT name, signature, role, receiver, params, returns, line_number FROM symbols WHERE name LIKE '%{keyword}%'"),
 
-    # 调用关系（符号级，依赖 calls/called_by 字段）
-    # called_by 存的是 caller 的 symbol id（rebuild_called_by 写入）
-    # calls 存的是 callee 的符号名（字符串数组，extract_calls_in_function 写入）
-    ("(?:谁调用|谁用了|被谁调用|called_by|调用方|调用者)\s+(\w+)",
-     "SELECT s2.name AS caller, s2.signature, m.file_path, s2.line_number "
-     "FROM symbols s JOIN symbols s2 ON s2.id IN (SELECT value FROM json_each(s.called_by)) "
-     "JOIN modules m ON s2.module_id = m.name WHERE s.name = '{keyword}'"),
-    ("(?:调用谁|调用了什么|calls|调用关系)\s+(\w+)",
-     "SELECT s2.name AS callee, s2.signature, m.file_path, s2.line_number "
-     "FROM symbols s JOIN symbols s2 ON s2.name IN (SELECT value FROM json_each(s.calls)) "
-     "JOIN modules m ON s2.module_id = m.name WHERE s.name = '{keyword}'"),
-
     # API 路由
     ("(?:所有|哪些|列出).*api|api.*路由|接口.*列表",
      "SELECT method, path, handler, auth, group_name FROM api_routes ORDER BY method, path"),
