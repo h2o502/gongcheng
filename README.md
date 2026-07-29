@@ -249,6 +249,7 @@ gongcheng 会这样调度：
 
 ## 版本
 
+v1.3.1 — 2026-07-29 统一子 skill 与根包版本号为 1.3.1，同步 GitHub 与 SkillHub 最新内容
 v1.3.0 — 2026-07-28 明确 gongxu（工需）与 gongchan（工产）分工，gongxu 产出作为 gongchan 强制输入，README 同步更新
 v1.2.3 — 2026-07-28 将 md2html 纳入工具层，README 同步重整子 skill 与工具层结构
 v1.1.0 — 2026-07-07 新增 gongshu（工数）数据安全守护 skill

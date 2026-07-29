@@ -1,7 +1,7 @@
 ---
 slug: gongcheng
 displayName: 工成 · Vibecoding 全生命周期 AI 工程 Skill
-version: 1.3.0
+version: 1.3.1
 summary: 覆盖 Vibecoding 全生命周期的工程编排层，用 PlantUML 固化架构，具备自我迭代能力。v1.3 明确 gongxu（工需）与 gongchan（工产）分工，gongxu 产出工需建议书作为 gongchan 的强制输入。
 license: MIT
 name: gongcheng
@@ -652,6 +652,7 @@ MIT。gongtu 子目录的 LICENSE 是 Kroki 依赖的协议声明。
 
 ## 版本
 
+v1.3.1 — 2026-07-29 统一子 skill 与根包版本号为 1.3.1，同步 GitHub 与 SkillHub 最新内容
 v1.3.0 — 2026-07-28 明确 gongxu（工需）与 gongchan（工产）分工，新增第五章交接产物规范；gongxu 产出作为 gongchan 强制输入；README 增加最小示例
 v1.2.3 — 2026-07-28 将 md2html（Markdown 转 HTML / ASCII 流程图自动转 Mermaid）纳入 gongcheng 工具层；重整第三章子 skill 索引，明确区分工字系列子 skill 与 tools/ 工具层（文档转换 / Office / 图形）。
 v1.1.0 — 2026-07-07 新增 gongshu（工数）数据安全守护 skill，补齐数据层风控缺口；定义 L1-L4 四级风险分级、强制备份、确认门禁、歧义追问协议；源于 2026-07-07 生产事故教训

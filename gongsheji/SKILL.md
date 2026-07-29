@@ -1,7 +1,7 @@
 ---
 slug: gongsheji
 displayName: 工设计
-version: 1.3.0
+version: 1.3.1
 summary: 严格工程设计工作流，spec→plan→TDD 执行→评审，用于编码实现。
 license: MIT
 name: gongsheji

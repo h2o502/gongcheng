@@ -1,7 +1,7 @@
 ---
 slug: gongyi
 displayName: 工艺
-version: 1.3.0
+version: 1.3.1
 summary: AI 协同编程的项目记忆中继站，SQLite 知识库 + 开发/审查/交接三模式。
 license: MIT
 name: gongyi

@@ -1,7 +1,7 @@
 ---
 slug: gongxu
 displayName: 工需
-version: 1.3.0
+version: 1.3.1
 summary: 工程需求自驱引擎，产出工需清单和验收标准，是 gongchan 的强制输入。
 license: MIT
 name: gongxu

@@ -1,7 +1,7 @@
 ---
 slug: gongtu
 displayName: 工图
-version: 1.3.0
+version: 1.3.1
 summary: 把 PlantUML/Mermaid/D2/Graphviz 等 27 种图源码渲染成 SVG/PNG/PDF 图片。
 license: MIT
 name: gongtu
